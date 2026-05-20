@@ -2,9 +2,9 @@
 
 ![CI](https://github.com/samsamtrum/agent-arena/actions/workflows/ci.yml/badge.svg)
 
-**Base-only AI agents that battle tokens, repos, DEX flow, and risk signals to find the next Base winner.**
+**Base Network blockchain AI agents that battle tokens, repos, DEX flow, and risk signals to find the next Base winner.**
 
-AgentArena is a Web3-native discovery dashboard for Base projects. Paste Base token contracts or GitHub repos, let the agent lineup score each contender, then export a shareable battle card and viral caption.
+AgentArena is a Web3-native discovery dashboard built specifically for the **Base Network blockchain**. Paste Base token contracts or GitHub repos, let the agent lineup score each contender, then export a shareable battle card and viral caption.
 
 It is built for token hunters, builders, launch communities, and Base-native projects that want a fast way to compare product traction, market flow, narrative strength, and risk.
 
@@ -20,12 +20,22 @@ Most token discovery tools focus on price. AgentArena turns discovery into an ex
 
 The result is a clean winner, a ranked battle matrix, detailed agent reports, and social-ready output.
 
+## Blockchain Network
+
+AgentArena is focused on **Base Network**, the Ethereum Layer 2 blockchain built on the OP Stack.
+
+- Network: **Base**
+- Chain type: **Ethereum Layer 2 / EVM-compatible blockchain**
+- Chain ID: **8453**
+- Token scope: **Base Network token contracts**
+- Market scope: **Base DEX pairs and liquidity**
+
 ## Why Base-only
 
-AgentArena focuses on Base so every score uses the same assumptions:
+AgentArena focuses on Base Network so every score uses the same blockchain assumptions:
 
-- Base DEX liquidity
-- Base token contracts
+- Base Network DEX liquidity
+- Base Network token contracts
 - Base-native creator culture
 - Base wallet flow
 - Bankr-friendly token launches
