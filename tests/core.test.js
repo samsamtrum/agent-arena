@@ -205,6 +205,18 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('risk cards turn gate penalties into actionable remediation', () => {
+  const risky = { ...baseProject, security: null, holders: null, gecko: null };
+  risky.scores = core.scoreProject(risky);
+  const cards = core.riskCards(risky);
+  const queue = core.remediationQueue(risky);
+  const conclusion = core.analystConclusion(risky);
+  assert.ok(cards.length >= 2);
+  assert.ok(cards.some(c => c.action && c.resolveBy));
+  assert.ok(queue.some(t => /Security|Holder|Market|Scan|cross-check/i.test(t.resolveBy + t.title)));
+  assert.match(conclusion, /Do not|blocks|trust|resolve/i);
+});
+
 test('re-scan intelligence compares current token health against prior snapshots', () => {
   const oldScores = core.scoreProject(baseProject);
   const oldSnap = core.compactSnapshot({ ...baseProject, scores: oldScores });
@@ -235,6 +247,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
   assert.match(md, /Re-scan Intelligence/);
+  assert.match(md, /Risk Cards/);
+  assert.match(md, /Remediation Queue/);
+  assert.match(md, /Analyst conclusion/);
   assert.match(md, /Evidence Trail/);
   assert.doesNotThrow(() => JSON.stringify(data));
 });

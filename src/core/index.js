@@ -1151,6 +1151,59 @@ export function scenarioAnalysis(winner, runner, scenario) {
   const changes = simulatedKernels.map((k, i) => ({ agent: k.name, from: currentKernels[i].vote, to: k.vote, scoreDelta: k.score - currentKernels[i].score })).filter(x => x.from !== x.to || Math.abs(x.scoreDelta) >= 5);
   return { simulated, currentKernels, simulatedKernels, currentConsensus, simulatedConsensus, changes };
 }
+export function riskCards(p) {
+  const intelligence = tokenIntelligence(p);
+  const cards = [];
+  const add = ({ severity = 'medium', label, evidence, impact, action, resolveBy = 'Manual review', source = 'Core' }) => cards.push({ severity, label, evidence, impact, action, resolveBy, source });
+  const severityFrom = level => level === 'danger' ? 'critical' : level === 'warn' ? 'high' : 'medium';
+  (intelligence.penaltyBreakdown || []).forEach(r => add({
+    severity: severityFrom(r.level), label: r.label, evidence: r.detail, impact: `Gate ${r.gate || intelligence.gate}; penalty -${Math.round(r.penalty || 0)}.`,
+    action: remediationAction(r.label), resolveBy: remediationResolver(r.label), source: 'Decision Gate'
+  }));
+  (intelligence.missing || []).forEach(m => add({
+    severity: ['Contract', 'Price', 'Liquidity'].includes(m.label) ? 'high' : 'medium', label: `Missing ${m.label}`, evidence: m.note,
+    impact: 'Confidence and completeness are capped until this evidence is filled.', action: remediationAction(`Missing ${m.label}`), resolveBy: remediationResolver(`Missing ${m.label}`), source: 'Data Quality'
+  }));
+  if (!cards.length) add({ severity: 'low', label: 'No blocking risk card', evidence: 'No major gate penalty or missing critical field detected.', impact: 'Score is not blocked by the risk-card layer.', action: 'Continue monitoring re-scan deltas and source freshness.', resolveBy: 'Re-scan later', source: 'Core' });
+  const rank = { critical: 0, high: 1, medium: 2, low: 3 };
+  return cards.sort((a,b)=>rank[a.severity]-rank[b.severity]).slice(0, 10);
+}
+export function remediationAction(label = '') {
+  const l = label.toLowerCase();
+  if (l.includes('security') || l.includes('contract')) return 'Run GoPlus Security Scan and inspect owner/tax/blacklist flags.';
+  if (l.includes('holder') || l.includes('concentration')) return 'Run Holder Scan and verify top holder, LP, router, deployer, and whale labels.';
+  if (l.includes('market') || l.includes('liquidity') || l.includes('fdv') || l.includes('volume')) return 'Run Market cross-check and compare DexScreener with GeckoTerminal liquidity/FDV/volume.';
+  if (l.includes('owner') || l.includes('deployer')) return 'Run Deployer/Whale Flow scan and inspect outbound transfers before trusting momentum.';
+  if (l.includes('hype') || l.includes('social')) return 'Require holder, whale, and market confirmation before treating social traction as credible.';
+  if (l.includes('repo') || l.includes('builder')) return 'Import GitHub and verify recent commits, releases, and whether builder signal matches token safety.';
+  return 'Verify the underlying evidence source, then re-run Analyze Token.';
+}
+export function remediationResolver(label = '') {
+  const l = label.toLowerCase();
+  if (l.includes('security') || l.includes('contract')) return 'Security Scan';
+  if (l.includes('holder') || l.includes('concentration')) return 'Holder Scan';
+  if (l.includes('market') || l.includes('liquidity') || l.includes('fdv') || l.includes('volume')) return 'Market Scan';
+  if (l.includes('owner') || l.includes('deployer') || l.includes('whale')) return 'Deployer / Whale Flow Scan';
+  if (l.includes('hype') || l.includes('social')) return 'Farcaster / Social evidence + holder confirmation';
+  if (l.includes('repo') || l.includes('builder')) return 'GitHub Import';
+  return 'Manual proof / Re-scan';
+}
+export function remediationQueue(p) {
+  const cards = riskCards(p);
+  const priority = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+  return cards.map((c, i) => ({ priority: priority[c.severity] || 'Medium', title: c.action, reason: `${c.label}: ${c.evidence}`, resolveBy: c.resolveBy, index: i + 1 })).slice(0, 8);
+}
+export function analystConclusion(p) {
+  const intelligence = tokenIntelligence(p);
+  const cards = riskCards(p);
+  const top = cards[0];
+  if (intelligence.label === 'Safe to Watch') return 'Watchlist candidate, but keep monitoring re-scan deltas, liquidity, holders, and source freshness.';
+  if (top?.severity === 'critical') return `${top.label} blocks trust in the score. ${top.action}`;
+  if (intelligence.gate !== 'Safe to Watch') return `Do not upgrade this above ${intelligence.gate} until ${top?.resolveBy || 'critical evidence'} is resolved.`;
+  if (intelligence.completeness < 60) return 'Do not trust the score until missing scans and market identity are complete.';
+  return 'Risk is explainable but not cleared; resolve the top remediation items before treating the token as credible.';
+}
+
 export function evidenceSummary(p) {
   const scores = p.scores || scoreProject(p);
   const intelligence = tokenIntelligence({ ...p, scores });
@@ -1172,15 +1225,15 @@ export function evidenceSummary(p) {
   const missing = intelligence.missing.map(x => x.label).slice(0, 5);
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
-  return { intelligence, checks, positives, risks, missing, penalties, recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
-  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) }));
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) }));
   return {
     version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), delta: riskDeltaEngine(winner, snapshots) },
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots) },
     ranking,
     agentKernels: kernels,
     consensus,
@@ -1205,6 +1258,7 @@ export function reportMarkdown(data) {
   lines.push(`**${label}** — **${intel?.label || data.winner.consensus}**`);
   lines.push(`Score: **${intel?.score ?? data.winner.adjustedFinal}/100** · Confidence: **${intel?.confidence ?? 0}%** · Completeness: **${intel?.completeness ?? 0}%**`);
   lines.push(`Recommendation: ${summary?.recommendation || 'Import live data and run verification scans before relying on the result.'}`);
+  lines.push(`Analyst conclusion: ${data.winner.analystConclusion || summary?.analystConclusion || 'Resolve the top evidence gaps before relying on this score.'}`);
   lines.push(``);
   lines.push(`## Top Risks`);
   (summary?.risks?.length ? summary.risks : ['No major risk reason available yet.']).slice(0, 3).forEach(x => lines.push(`- ${x}`));
@@ -1225,6 +1279,14 @@ export function reportMarkdown(data) {
     lines.push(`Status: **${delta.status}** — ${delta.summary}`);
     delta.alerts.slice(0, 6).forEach(a => lines.push(`- ${a.level.toUpperCase()}: ${a.label} — ${a.detail}`));
   } else lines.push(`- New token snapshot. Re-scan later to compare score, confidence, liquidity, holder concentration, whale flow, verdict, and decision gate changes.`);
+  lines.push(``);
+  lines.push(`## Risk Cards`);
+  const cards = data.winner.riskCards || summary?.riskCards || data.ranking[0]?.riskCards || [];
+  cards.slice(0, 6).forEach(c => lines.push(`- **${c.severity.toUpperCase()} · ${c.label}** — Evidence: ${c.evidence} · Impact: ${c.impact} · Action: ${c.action} · Resolve by: ${c.resolveBy}`));
+  lines.push(``);
+  lines.push(`## Remediation Queue`);
+  const remediation = data.winner.remediation || summary?.remediation || data.ranking[0]?.remediation || [];
+  remediation.slice(0, 6).forEach(t => lines.push(`- [${t.priority}] ${t.title} — ${t.reason} · Resolve by: ${t.resolveBy}`));
   lines.push(``);
   lines.push(`## Missing Data / Skipped Scans`);
   const missing = summary?.missing?.length ? summary.missing : [];
