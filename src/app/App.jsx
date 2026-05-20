@@ -402,10 +402,17 @@ function App() {
 
   return <main>
     <section className="hero">
-      <div className="badge"><Radio size={16}/> Base-only AI Token Battle Engine</div>
-      <h1>AgentArena</h1>
-      <p className="tagline">AI agents debate Base tokens, GitHub repos, and DEX signals — then pick the next Base winner.</p>
-      <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Battle</a><button onClick={exportCard} className="btn"><Download size={18}/> Export Share Card</button><button onClick={copyCaption} className="btn">{copied ? <Check size={18}/> : <Copy size={18}/>} {copied ? 'Copied' : 'Copy Viral Caption'}</button><button onClick={saveBattle} className="btn"><Save size={18}/> Save Battle</button></div>
+      <div className="hero-copy">
+        <div className="badge"><Radio size={16}/> Base-only AI Token Intelligence</div>
+        <h1>AgentArena</h1>
+        <p className="tagline">Score Base tokens with live DEX data, GitHub traction, security signals, and explainable agent consensus.</p>
+        <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Battle</a><a href="#report" className="btn"><TrendingUp size={18}/> View Report</a><button onClick={exportCard} className="btn"><Download size={18}/> Export Card</button><button onClick={saveBattle} className="btn"><Save size={18}/> Save Battle</button></div>
+      </div>
+      <div className="hero-dashboard" aria-label="AgentArena workflow summary">
+        <div><small>Step 1</small><b>Import</b><span>Base contract or GitHub repo</span></div>
+        <div><small>Step 2</small><b>Verify</b><span>Market, security, holders</span></div>
+        <div><small>Step 3</small><b>Decide</b><span>Consensus score + export</span></div>
+      </div>
     </section>
 
 
@@ -415,6 +422,8 @@ function App() {
       <textarea value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" />
       {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
     </section>
+
+    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Setup</a><a href="#report">Report</a><a href="#quality">Reliability</a><a href="#tools">Tools</a><a href="#agents">Agents</a></section>
 
     <section className="grid" id="arena">
       <div className="panel controls">
@@ -490,7 +499,7 @@ function App() {
 
 
 
-    <section className="token-report-panel panel">
+    <section className="token-report-panel panel" id="report">
       <div className="panel-head"><h2>Full Token Reports</h2><span className="base-chip">all contenders</span></div>
       <div className="token-report-grid">{ranked.map((p, rank) => { const report = tokenReport(p, rank); return <article className="token-report-card" key={`${p.name}-token-report`}>
         <div className="token-report-top"><div><small>#{report.rank}</small><h3>{p.symbol ? `$${p.symbol}` : p.name}</h3><span>{p.name}</span></div><b>{Math.round(p.scores.adjustedFinal ?? p.scores.final)}/100</b></div>
@@ -501,7 +510,7 @@ function App() {
     </section>
 
 
-    <section className="reliability-panel panel">
+    <section className="reliability-panel panel" id="quality">
       <div className="panel-head"><h2>Source Reliability + Adjusted Scoring</h2><span className="base-chip">verified score guard</span></div>
       <div className="source-grid">{ranked.map((p) => { const rel = sourceReliability(p); const adj = adjustedScore(p); return <article className="source-card" key={`${p.name}-reliability`}>
         <div className="source-title"><div><h3>{p.symbol ? `$${p.symbol}` : p.name}</h3><small>{rel.badge}</small></div><b>{Math.round(adj.adjustedFinal)}/100</b></div>
@@ -531,7 +540,7 @@ function App() {
 
 
 
-    <section className="sim-panel panel">
+    <section className="sim-panel panel" id="tools">
       <div className="panel-head"><h2>Strategy Simulator</h2><button onClick={resetScenario}>Reset Scenario</button></div>
       <div className="sim-grid">
         <label>Volume x<b>{scenario.volumeMultiplier}x</b><input type="range" min="0.1" max="4" step="0.1" value={scenario.volumeMultiplier} onChange={e=>updateScenario('volumeMultiplier', Number(e.target.value))}/></label>
@@ -861,7 +870,7 @@ function App() {
       </article> })}</div>
     </section>
 
-    <section className="agents">
+    <section className="agents" id="agents">
       <h2>AI Debate Room</h2>
       <div className="agent-grid">{agents.map(A => { const Icon=agentIcons[A.icon] || Bot; return <article className="agent" key={A.name} style={{'--c':A.color}}><Icon/><h3>{A.name}</h3><p>{A.focus}</p></article> })}</div>
       <div className="transcript">{ranked.map((p, rank)=><div key={`${p.name}-${rank}`} className="round"><h3>{rank===0?'🏆 ':'⚔️ '}{p.name}</h3>{agents.map(a=><p key={a.name}><b>{a.name}:</b> {lineFor(a,p,p.scores,rank)}</p>)}</div>)}</div>
