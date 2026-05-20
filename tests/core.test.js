@@ -205,6 +205,17 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('adversarial simulation detects rug-pattern proximity and worst scenarios', () => {
+  const risky = { ...baseProject, liquidity: 12000, volume: 72000, marketCap: 2800000, priceChange24h: 64, holders: { supply: 1000000, holderCount: 80, topHolders: [{ TokenHolderAddress: baseProject.deployerAddress, TokenHolderQuantity: 420000 }, { TokenHolderAddress: '0x7777777777777777777777777777777777777777', TokenHolderQuantity: 160000 }] }, transferFlow: { transferCount: 40, uniqueWallets: 5, largeTransferCount: 8, netToTopWalletPct: 32, ownerOutPct: 18 } };
+  risky.scores = core.scoreProject(risky);
+  const rug = core.rugPatternDetector(risky);
+  const sim = core.adversarialSimulation(risky);
+  assert.ok(['Elevated', 'High', 'Critical'].includes(rug.level));
+  assert.ok(rug.flags.some(f => /liquidity|holder|owner|FDV|volume/i.test(f.label)));
+  assert.ok(sim.worst);
+  assert.ok(sim.scenarios.some(s => s.verdictChanged || s.gateChanged || s.scoreDelta < 0 || ['High', 'Critical'].includes(s.rugLevel)));
+});
+
 test('token identity and pair integrity catch mismatched or spoof-like pools', () => {
   const clean = { ...baseProject, gecko: { ...baseProject.gecko, pairAddress: baseProject.pairAddress, poolCount: 1, matchedPreferredPair: true } };
   const ok = core.pairIntegrity(clean);
@@ -275,6 +286,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
   assert.match(md, /Token Identity \/ Pair Integrity/);
   assert.match(md, /Identity score/);
+  assert.match(md, /Adversarial Risk Simulation/);
+  assert.match(md, /Pre-rug proximity/);
+  assert.match(md, /Worst scenario/);
   assert.match(md, /Confidence Calibration/);
   assert.match(md, /Evidence tier/);
   assert.match(md, /Re-scan Intelligence/);

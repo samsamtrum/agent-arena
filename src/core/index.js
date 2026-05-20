@@ -1287,6 +1287,52 @@ export function scenarioAnalysis(winner, runner, scenario) {
   const changes = simulatedKernels.map((k, i) => ({ agent: k.name, from: currentKernels[i].vote, to: k.vote, scoreDelta: k.score - currentKernels[i].score })).filter(x => x.from !== x.to || Math.abs(x.scoreDelta) >= 5);
   return { simulated, currentKernels, simulatedKernels, currentConsensus, simulatedConsensus, changes };
 }
+export function rugPatternDetector(p) {
+  const risk = getRiskIntel(p);
+  const holders = holderIntel(p);
+  const whales = whaleFlowIntel(p);
+  const security = securityIntel(p);
+  const pair = pairIntegrity(p);
+  const social = farcasterIntel(p).available ? farcasterIntel(p) : socialIntel(p);
+  const flags = [];
+  let score = 0;
+  const add = (level, label, detail, weight) => { flags.push({ level, label, detail, weight }); score += weight; };
+  if (risk.liquidity > 0 && risk.liquidity < 15000) add('danger', 'Thin liquidity base', `${money(risk.liquidity)} liquidity is fragile.`, 18);
+  else if (risk.liquidity < 75000) add('warn', 'Early liquidity base', `${money(risk.liquidity)} liquidity can break under stress.`, 8);
+  if (risk.volToLiq > 3) add('danger', 'Extreme volume on thin liquidity', `${risk.volToLiq.toFixed(2)}x volume/liquidity resembles unstable or wash-volume flow.`, 18);
+  else if (risk.volToLiq > 1.5) add('warn', 'Hot volume on liquidity', `${risk.volToLiq.toFixed(2)}x volume/liquidity can reverse quickly.`, 9);
+  if (risk.fdvToLiq > 120) add('danger', 'FDV/liquidity stress', `${risk.fdvToLiq.toFixed(1)}x FDV/liquidity leaves little exit depth.`, 16);
+  if (holders.available && holders.top10Pct >= 65) add('danger', 'Top holders can move market', `Top 10 holders own ${holders.top10Pct.toFixed(1)}%.`, 18);
+  else if (holders.available && holders.top10Pct >= 45) add('warn', 'Holder concentration elevated', `Top 10 holders own ${holders.top10Pct.toFixed(1)}%.`, 9);
+  if (whales.available && whales.direction === 'Owner Distribution') add('danger', 'Owner/deployer distribution', 'Recent transfer flow shows owner/deployer outbound pressure.', 20);
+  if (security.available && security.score >= 70 && holders.available && holders.score < 50) add('warn', 'Clean contract but risky ownership', 'Clean code does not offset holder/deployer concentration.', 9);
+  if (pair.score < 50) add('danger', 'Weak identity/pair integrity', pair.flags.find(f=>f.level==='danger')?.label || 'Pair identity is not robust.', 16);
+  if ((social.score >= 70 || social.confidence === 'High') && (holders.score < 50 || whales.score < 45 || pair.score < 55)) add('warn', 'Hype outruns structure', 'Social traction is stronger than holder/flow/pair quality.', 10);
+  const level = score >= 65 ? 'Critical' : score >= 42 ? 'High' : score >= 22 ? 'Elevated' : 'Low';
+  if (!flags.length) flags.push({ level: 'good', label: 'No major rug pattern cluster', detail: 'Current evidence does not match a strong pre-rug cluster.', weight: 0 });
+  return { score: clamp(score, 0, 100), level, flags: flags.sort((a,b)=>(b.weight||0)-(a.weight||0)), summary: `${level} pre-rug proximity (${Math.round(clamp(score,0,100))}/100).` };
+}
+export function adversarialSimulation(p) {
+  const baseScores = p.scores || scoreProject(p);
+  const baseIntel = tokenIntelligence({ ...p, scores: baseScores });
+  const scenarios = [
+    { id: 'liquidity-pull-30', label: 'Liquidity Pull -30%', patch: x => ({ ...x, liquidity: num(x.liquidity) * .7, risk: clamp(num(x.risk) + 10) }) },
+    { id: 'liquidity-pull-60', label: 'Liquidity Pull -60%', patch: x => ({ ...x, liquidity: num(x.liquidity) * .4, risk: clamp(num(x.risk) + 20) }) },
+    { id: 'top-holder-sells', label: 'Top Holder Sell Pressure', patch: x => ({ ...x, priceChange24h: num(x.priceChange24h) - 28, volume: num(x.volume) * 1.4, risk: clamp(num(x.risk) + 16) }) },
+    { id: 'owner-outflow', label: 'Owner Sends Tokens Out', patch: x => ({ ...x, priceChange24h: num(x.priceChange24h) + 18, risk: clamp(num(x.risk) + 18), transferFlow: { ...(x.transferFlow || {}), transferCount: Math.max(20, num(x.transferFlow?.transferCount)), uniqueWallets: Math.max(4, num(x.transferFlow?.uniqueWallets)), ownerOutPct: Math.max(12, num(x.transferFlow?.ownerOutPct)), netToTopWalletPct: Math.max(18, num(x.transferFlow?.netToTopWalletPct)), largeTransferCount: Math.max(5, num(x.transferFlow?.largeTransferCount)) } }) },
+    { id: 'volume-spike-no-liq', label: 'Volume Spike Without Liquidity', patch: x => ({ ...x, volume: Math.max(num(x.volume) * 2.6, num(x.liquidity) * 2.2), risk: clamp(num(x.risk) + 12) }) },
+    { id: 'market-mismatch', label: 'Market Source Mismatch Appears', patch: x => ({ ...x, gecko: { ...(x.gecko || {}), liquidity: num(x.liquidity) * .35, volume: num(x.volume) * 1.8, marketCap: num(x.marketCap) * 1.8, pairAddress: x.pairAddress ? '0x9999999999999999999999999999999999999999' : '' } }) }
+  ];
+  const results = scenarios.map(s => {
+    const simulated = s.patch(JSON.parse(JSON.stringify(p)));
+    simulated.scores = scoreProject(simulated);
+    const intel = tokenIntelligence(simulated);
+    const rug = rugPatternDetector(simulated);
+    return { id: s.id, label: s.label, score: intel.score, scoreDelta: intel.score - baseIntel.score, confidence: intel.confidence, confidenceDelta: intel.confidence - baseIntel.confidence, verdict: intel.label, gate: intel.gate, gateChanged: intel.gate !== baseIntel.gate, verdictChanged: intel.label !== baseIntel.label, rugLevel: rug.level, topRisk: rug.flags[0]?.label || 'No major risk' };
+  }).sort((a,b)=>a.score-b.score || a.confidence-b.confidence);
+  return { base: { score: baseIntel.score, confidence: baseIntel.confidence, verdict: baseIntel.label, gate: baseIntel.gate }, worst: results[0], scenarios: results, monitor: rugPatternDetector(p).flags.filter(f=>f.level !== 'good').slice(0,5) };
+}
+
 export function riskCards(p) {
   const intelligence = tokenIntelligence(p);
   const cards = [];
@@ -1363,7 +1409,7 @@ export function evidenceSummary(p) {
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
   const calibration = confidenceCalibration({ ...p, scores });
-  return { intelligence, checks, positives, risks, missing, penalties, calibration, identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1429,6 +1475,16 @@ export function reportMarkdown(data) {
     (cal.topSources?.length ? cal.topSources : []).slice(0, 4).forEach(s => lines.push(`- Source weight: ${s.name} contributes ${s.contribution}/${s.weight} — ${s.detail}`));
     if (cal.unlocks?.length) lines.push(`- Unlock confidence by: ${cal.unlocks.join(', ')}`);
   } else lines.push(`- Calibration unavailable.`);
+  lines.push(``);
+  lines.push(`## Adversarial Risk Simulation`);
+  const rug = summary?.rugPattern || data.ranking[0]?.summary?.rugPattern;
+  const adv = summary?.adversarial || data.ranking[0]?.summary?.adversarial;
+  if (rug && adv) {
+    lines.push(`Pre-rug proximity: **${rug.level}** · Score: **${Math.round(rug.score)}/100**`);
+    rug.flags.slice(0, 5).forEach(f => lines.push(`- Pattern: ${f.level.toUpperCase()} — ${f.label}: ${f.detail}`));
+    lines.push(`Worst scenario: **${adv.worst?.label}** → ${adv.base.verdict} ${adv.base.score}/100 becomes ${adv.worst?.verdict} ${adv.worst?.score}/100 · gate ${adv.base.gate} → ${adv.worst?.gate} · confidence ${adv.base.confidence}% → ${adv.worst?.confidence}%`);
+    adv.scenarios.slice(0, 4).forEach(s => lines.push(`- ${s.label}: score ${s.scoreDelta >= 0 ? '+' : ''}${s.scoreDelta}, confidence ${s.confidenceDelta >= 0 ? '+' : ''}${s.confidenceDelta}, gate ${s.gate}, rug ${s.rugLevel}, top risk ${s.topRisk}`));
+  } else lines.push(`- Adversarial simulation unavailable.`);
   lines.push(``);
   lines.push(`## Re-scan Intelligence`);
   const delta = data.winner.delta || data.ranking[0]?.delta;

@@ -88,6 +88,8 @@ test('downloaded report files are valid and do not contain broken placeholders',
   expect(mdText).toContain('## Decision Gate / Penalty Breakdown');
   expect(mdText).toContain('## Token Identity / Pair Integrity');
   expect(mdText).toContain('Identity score:');
+  expect(mdText).toContain('## Adversarial Risk Simulation');
+  expect(mdText).toContain('Pre-rug proximity:');
   expect(mdText).toContain('## Confidence Calibration');
   expect(mdText).toContain('Evidence tier:');
   expect(mdText).toContain('## Re-scan Intelligence');
