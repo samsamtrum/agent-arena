@@ -24,12 +24,12 @@ test.afterEach(async () => {
 
 test('loads dashboard, edits battle, saves memory, exports reports', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /AgentArena/i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Battle Setup' })).toBeVisible();
-  await expect(page.getByText('Quick import').first()).toBeVisible();
-  await expect(page.getByText('Agent Report Export Pack')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import and analyze Base token' })).toBeVisible();
+  await expect(page.getByText('01 / Scan Console').first()).toBeVisible();
+  await expect(page.getByText('03 / Reports')).toBeVisible();
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
-  await page.getByRole('button', { name: /^\+ Add$/ }).click();
+  await page.getByRole('button', { name: /^\+ Add token$/ }).click();
   await expect(page.getByPlaceholder('Paste Base token contract')).toHaveCount(2);
 
   const contracts = page.getByPlaceholder('Paste Base token contract');
@@ -39,10 +39,10 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
   page.on('download', d => downloads.push(d));
   await page.getByRole('button', { name: /Download MD/i }).click();
   await page.getByRole('button', { name: /Download JSON/i }).click();
-  await expect(page.getByText(/downloaded/i)).toBeVisible();
+  await expect(page.getByText(/downloaded/i).first()).toBeVisible();
   expect(downloads.length).toBeGreaterThanOrEqual(2);
 
-  await page.getByRole('button', { name: /^\+ Add$/ }).click();
+  await page.getByRole('button', { name: /^\+ Add token$/ }).click();
   await expect(page.getByPlaceholder('Paste Base token contract')).toHaveCount(3);
 });
 
@@ -65,10 +65,10 @@ test('invalid external scans show useful status instead of crashing', async ({ p
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {
-  await page.getByText('Agent Report Export Pack').scrollIntoViewIfNeeded();
-  await expect(page.getByText(/Export the full agent analysis/)).toBeVisible();
+  await page.getByText('03 / Reports').scrollIntoViewIfNeeded();
+  await expect(page.getByText(/Markdown and JSON with ranking/)).toBeVisible();
   await page.getByRole('button', { name: /Download JSON/i }).click();
-  await expect(page.getByText(/downloaded/i)).toBeVisible();
+  await expect(page.getByText(/downloaded/i).first()).toBeVisible();
 });
 
 test('downloaded report files are valid and do not contain broken placeholders', async ({ page }) => {
@@ -144,10 +144,10 @@ test('external API network failures surface in UI without crashing', async ({ pa
   await page.getByRole('button', { name: /Import$/ }).first().click();
   await expect(page.getByText(/DexScreener request failed/)).toBeVisible();
 
-  await page.locator('.project-form').first().getByRole('button', { name: /^Market$/i }).click();
+  await page.locator('.token-card').first().getByRole('button', { name: /^Market$/i }).click();
   await expect(page.getByText(/GeckoTerminal request failed \(404\)/)).toBeVisible();
 
-  await page.locator('.project-form').first().getByRole('button', { name: /Security Scan/i }).click();
+  await page.locator('.token-card').first().getByRole('button', { name: /Security Scan/i }).click();
   await expect(page.getByText(/Security request failed \(429\)/)).toBeVisible();
 });
 
@@ -161,8 +161,8 @@ test.describe('responsive smoke', () => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.reload();
       await expect(page.getByRole('heading', { name: /AgentArena/i })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Battle Setup' })).toBeVisible();
-      await page.getByText('Agent Report Export Pack').scrollIntoViewIfNeeded();
+      await expect(page.getByRole('heading', { name: 'Import and analyze Base token' })).toBeVisible();
+      await page.getByText('03 / Reports').scrollIntoViewIfNeeded();
       await expect(page.getByRole('button', { name: /Download MD/i })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(12);

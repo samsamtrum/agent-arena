@@ -460,142 +460,88 @@ function App() {
     }
   };
 
-  return <main>
-    <section className="hero">
-      <div className="hero-copy">
-        <div className="brand-row"><img src="/avatar-192.png" alt="AgentArena avatar" className="project-avatar"/><div className="badge"><Radio size={16}/> Base-only AI Token Intelligence</div></div>
+  return <main className="saas-app">
+    <section className="saas-hero">
+      <div className="saas-hero-copy">
+        <div className="saas-eyebrow"><img src="/avatar-192.png" alt="AgentArena avatar"/> Base AI Token Risk Dashboard</div>
         <h1>AgentArena</h1>
-        <p className="tagline">A production-grade Base token intelligence cockpit for contract risk, liquidity exits, holder pressure, market proof, and evidence-backed verdicts.</p>
-        <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Analysis</a><a href="#export" className="btn"><Download size={18}/> Export Report</a></div>
-        <div className="trust-strip"><span>Base-only</span><span>No fake scans</span><span>Evidence-gated</span></div>
+        <p className="saas-tagline">A clean SaaS dashboard for importing one Base token, running evidence checks, and exporting a risk verdict people can verify.</p>
+        <div className="saas-actions"><a href="#scan" className="saas-btn primary"><Zap size={18}/> Analyze token</a><a href="#reports" className="saas-btn"><Download size={18}/> Export report</a></div>
       </div>
-      <div className="cockpit-shell" aria-label="AgentArena cockpit preview">
-        <div className="orbit-ring"></div>
-        <div className="cockpit-core">
-          <img src="/avatar-192.png" alt="AgentArena avatar" />
-          <span>LIVE BASE INTEL</span>
-          <b>Risk Cockpit</b>
+      <div className="saas-overview-card">
+        <div className="overview-top"><span>Current workspace</span><b>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'No token imported'}</b></div>
+        <div className="overview-score"><strong>{hasBattleData ? winnerIntelV2.score : '—'}</strong><span>{hasBattleData ? `${winnerIntelV2.confidence}% confidence` : 'Waiting for Base contract'}</span></div>
+        <div className="overview-grid">
+          <div><small>Contracts</small><b>{activeProjects.length}</b></div>
+          <div><small>Completeness</small><b>{hasBattleData ? `${winnerIntelV2.completeness}%` : '—'}</b></div>
+          <div><small>Verdict</small><b>{hasBattleData ? winnerIntelV2.label : 'Ready'}</b></div>
         </div>
-        <div className="cockpit-metric metric-a"><small>01</small><b>Import</b><span>Base contract</span></div>
-        <div className="cockpit-metric metric-b"><small>02</small><b>Verify</b><span>Market + security</span></div>
-        <div className="cockpit-metric metric-c"><small>03</small><b>Decide</b><span>Evidence report</span></div>
       </div>
     </section>
 
+    <section className="saas-layout" id="scan">
+      <aside className="saas-sidebar">
+        <div className="side-brand"><img src="/avatar-192.png" alt="AgentArena"/><div><b>AgentArena</b><span>Base-only scanner</span></div></div>
+        <a href="#scan">Scan Console</a><a href="#verdict">Risk Verdict</a><a href="#reports">Reports</a><a href="#sources">Sources</a>
+        <button onClick={newBattle}><RotateCcw size={16}/> New workspace</button>
+      </aside>
 
-    <section className="command-deck" aria-label="Page sections">
-      <a href="#arena"><small>01</small><b>Analyze</b><span>Paste one Base contract</span></a>
-      <a href="#export"><small>02</small><b>Export</b><span>Download report pack</span></a>
-      <a href="#advanced"><small>03</small><b>Advanced</b><span>API keys + bulk scans</span></a>
-    </section>
+      <div className="saas-main">
+        <section className="dashboard-strip">
+          <div><small>Input mode</small><b>Base contract</b></div>
+          <div><small>Ranking</small><b>{hasBattleData ? `${ranked.length} token${ranked.length > 1 ? 's' : ''}` : 'Empty'}</b></div>
+          <div><small>Report status</small><b>{reportStatus || 'Ready'}</b></div>
+        </section>
 
-    <section className="mission-flow" aria-label="Analysis flow"><div><b>01</b><span>Paste Base contract</span></div><div><b>02</b><span>Run evidence checks</span></div><div><b>03</b><span>Read verdict</span></div><div><b>04</b><span>Export report</span></div></section>
-
-    <section className="grid" id="arena">
-      <div className="panel controls command-panel analysis-console">
-        <div className="panel-head"><div><h2>Battle Setup</h2><p className="panel-kicker">Analyze one Base token first. Paste a contract, run core checks, then export an evidence-backed verdict.</p></div><button onClick={addProject}>+ Add</button></div>
-        <label className="visible-field">Battle title<span className="field-hint">Name this analysis session</span><input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
-        {projects.map((p,i)=><details className="project-form" key={i} open>
-          <summary className="project-summary">
-            <span><b>{p.symbol ? `$${p.symbol}` : p.name || `Project ${i+1}`}</b><small>{p.contract ? shortAddr(p.contract) : 'Add Base contract or repo'}</small></span>
-            <em>{Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0)}/100</em>
-          </summary>
-          <div className="setup-block priority-block">
-            <div className="setup-block-head"><b>1. Quick import</b><span>Paste a Base contract. Analyze runs import, market, security, and available keyed scans.</span></div>
-            <div className="import-row">
-              <label className="visible-field field-inline"><span className="field-hint strong">Paste Base token contract</span><input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" /></label>
-              <button className="primary-action" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Zap size={17}/>} Analyze Token</button><button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
+        <section className="scan-card saas-panel">
+          <div className="saas-panel-head"><div><span>01 / Scan Console</span><h2>Import and analyze Base token</h2><p>Paste a contract. AgentArena will import token data, check market and security, then build an evidence-backed verdict.</p></div><button onClick={addProject}>+ Add token</button></div>
+          <label className="saas-field">Battle title<input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
+          <div className="token-stack">
+          {projects.map((p,i)=><article className="token-card" key={i}>
+            <header><div><small>Token slot {i+1}</small><h3>{p.symbol ? `$${p.symbol}` : p.name || 'Untitled token'}</h3><span>{p.contract ? shortAddr(p.contract) : 'Paste a Base contract to begin'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
+            <div className="primary-import-row">
+              <label className="saas-field wide">Paste Base token contract<input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" /></label>
+              <button className="saas-btn primary" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Zap size={17}/>} Analyze Token</button>
+              <button className="saas-btn" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button>
             </div>
-            {analyzeStatus[i] && analyzeStatus[i] !== 'loading' && <p className={analyzeStatus[i].includes('complete') ? 'status ok' : 'status'}>{analyzeStatus[i]}</p>}
-            {imports[i] && imports[i] !== 'loading' && <p className={imports[i].startsWith('Imported') ? 'status ok' : 'status'}>{imports[i]}</p>}
-            {marketStatus[i] && marketStatus[i] !== 'loading' && <p className={marketStatus[i].includes('complete') ? 'status ok' : 'status'}>{marketStatus[i]}</p>}
-            <div className="import-row repo-row"><label className="visible-field field-inline"><span className="field-hint strong">GitHub repo or URL</span><input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" /></label><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}>{repoImports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Code2 size={17}/>} Repo</button></div>
-            {repoImports[i] && repoImports[i] !== 'loading' && <p className={repoImports[i].startsWith('Imported') ? 'status ok' : 'status'}>{repoImports[i]}</p>}
+            {[analyzeStatus[i], imports[i], marketStatus[i], repoImports[i], securityStatus[i], holderStatus[i], whaleFlowStatus[i], farcasterStatus[i], deployerStatus[i]].filter(x=>x && x !== 'loading').map((x,idx)=><p className={String(x).includes('complete') || String(x).startsWith('Imported') ? 'saas-status ok' : 'saas-status'} key={idx}>{x}</p>)}
+            <div className="secondary-grid">
+              <label className="saas-field">GitHub repo or URL<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" /></label>
+              <label className="saas-field">Optional deployer/owner address<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label>
+            </div>
+            <div className="tool-row">
+              <button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}><TrendingUp size={16}/> Market</button><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}><Code2 size={16}/> Repo</button><button onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}><LockKeyhole size={16}/> Security Scan</button><button onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}><Coins size={16}/> Holder Scan</button><button onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}><Coins size={16}/> Whale Flow</button><button onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}><Sparkles size={16}/> Farcaster</button><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}><ShieldAlert size={16}/> Deployer</button>
+            </div>
+            {hasProjectData(p) && <div className="token-meta"><span>{p.symbol || 'TOKEN'}</span>{p.price ? <b>{money(p.price, 4)}</b> : null}{p.marketCap ? <span>{money(p.marketCap)} cap</span> : null}{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}</div>}
+          </article>)}
           </div>
+        </section>
 
-          <details className="setup-block" open>
-            <summary className="setup-block-head"><b>2. Optional manual checks</b><span>Use these when you want to rerun one source only.</span></summary>
-            <div className="scan-toolbar">
-              <button className="security-button" onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}>{securityStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <LockKeyhole size={16}/>} Security Scan</button>
-              <button className="security-button" onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}>{holderStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <Coins size={16}/>} Holder Scan</button>
-              <button className="security-button" onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}>{whaleFlowStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Coins size={17}/>} Whale Flow</button>
-              <button className="security-button" onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}>{farcasterStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Sparkles size={17}/>} Farcaster</button>
-            </div>
-            {securityStatus[i] && securityStatus[i] !== 'loading' && <p className={securityStatus[i].includes('complete') ? 'status ok' : 'status'}>{securityStatus[i]}</p>}
-            {holderStatus[i] && holderStatus[i] !== 'loading' && <p className={holderStatus[i].includes('complete') ? 'status ok' : 'status'}>{holderStatus[i]}</p>}
-            {whaleFlowStatus[i] && whaleFlowStatus[i] !== 'loading' && <p className={whaleFlowStatus[i].includes('complete') ? 'status ok' : 'status'}>{whaleFlowStatus[i]}</p>}
-            {farcasterStatus[i] && farcasterStatus[i] !== 'loading' && <p className={farcasterStatus[i].includes('complete') ? 'status ok' : 'status'}>{farcasterStatus[i]}</p>}
-            <div className="import-row repo-row"><label className="visible-field field-inline"><span className="field-hint strong">Optional deployer/owner address</span><input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}>{deployerStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <ShieldAlert size={17}/>} Deployer</button></div>
-            {deployerStatus[i] && deployerStatus[i] !== 'loading' && <p className={deployerStatus[i].includes('complete') ? 'status ok' : 'status'}>{deployerStatus[i]}</p>}
-          </details>
+        <section className="verdict-grid" id="verdict">
+          <div id="share-card" className="verdict-card">
+            <div className="verdict-header"><span>{hasBattleData ? 'Live verdict' : 'Ready state'}</span><b>AgentArena · Base</b></div>
+            <div className="verdict-title"><Trophy size={38}/><div><small>{hasBattleData ? 'Top token' : 'No fake sample loaded'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'Import a Base token'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)}/100` : 'Dashboard stays empty until real input is imported.'}</p></div></div>
+            {hasBattleData ? <><div className="verdict-metrics"><div><strong>{winnerIntelV2.score}</strong><span>Risk score</span></div><div><strong>{winnerIntelV2.confidence}%</strong><span>Confidence</span></div><div><strong>{winnerQuality.completeness}%</strong><span>Complete</span></div></div><div className="risk-tags">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div><div className="ranking-list">{ranked.slice(0,4).map((p,i)=><div key={`${p.name}-${i}`}><span>#{i+1} {p.symbol ? `$${p.symbol}` : p.name}</span><b>{Math.round(p.scores.adjustedFinal ?? p.scores.final)}</b></div>)}</div></> : <div className="clean-empty"><b>Clean empty state</b><span>No demo market cap, no fake volume, no placeholder score.</span></div>}
+          </div>
+          <div className="saas-panel evidence-panel"><div className="saas-panel-head"><div><span>02 / Evidence</span><h2>What drives the verdict</h2></div></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Run Analyze Token to populate evidence.</p>}</div>
+        </section>
 
+        <section className="saas-panel report-panel" id="reports">
+          <div className="saas-panel-head"><div><span>03 / Reports</span><h2>Export pack</h2><p>Markdown and JSON with ranking, evidence, source coverage, decision gates, gaps, and next verification tasks.</p></div><span className="mini-chip">MD + JSON</span></div>
+          <div className="report-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button><button onClick={exportCard}><Download size={16}/> Export Card</button><button onClick={saveBattle}><Save size={16}/> Save Battle</button></div>
+          {reportStatus && <p className="saas-status ok">{reportStatus}</p>}{saveStatus && <p className="saas-status ok">{saveStatus}</p>}
+        </section>
 
-
-          {hasProjectData(p) && <div className="market-strip">
-            <span>{p.symbol || 'TOKEN'}</span>{p.price ? <b>{money(p.price, 4)}</b> : null}{p.marketCap ? <span>{money(p.marketCap)} cap</span> : null}{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}
-          </div>}
-        </details>)}
-      </div>
-
-      <div className="panel card-panel result-panel holo-result">
-        <div id="share-card" className="share-card">
-          <div className="card-glow" />
-          <div className="card-top"><span><Zap size={18}/> {battleTitle}</span><span>AgentArena · Base</span></div>
-          <div className="battle-label">{hasBattleData ? 'AI TOKEN BATTLE RESULT' : 'READY FOR ANALYSIS'}</div>
-          <div className="winner"><Trophy size={42}/><div><small>{hasBattleData ? 'AI Consensus Winner' : 'No sample data loaded'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'Import a Base token'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)} / 100` : 'Paste a Base contract or GitHub repo to start.'}</p></div></div>
-          {hasBattleData ? <><div className="verdict-panel"><b>{winnerIntelV2.label}</b><span>{winnerIntelV2.score}/100 · {winnerIntelV2.confidence}% confidence · {winnerIntelV2.completeness}% complete</span></div><div className="winner-stats"><span>{money(winner.marketCap)} market cap</span><span>{money(winner.volume)} 24h volume</span><span>{money(winner.liquidity)} liquidity</span><span>{num(winner.priceChange24h).toFixed(1)}% 24h</span><span>{Math.round(winner.scores.confidence)}% confidence</span><span>{winnerQuality.completeness}% complete</span></div>
-          <div className="risk-mini">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="empty-state"><b>Clean start</b><span>No demo tokens, no fake ranking, no example numbers.</span></div>}
-          {hasBattleData && <>
-            <div className="score-radar">
-              {['builder','market','meme','safety'].map(k=><div className="radar-item" key={k}><strong>{Math.round(winner.scores[k])}</strong><span>{k}</span></div>)}
-            </div>
-            <div className="score-bars compact">
-              {['builder','market','meme','safety'].map(k=><div key={k}><span>{k}</span><b>{Math.round(winner.scores[k])}</b><div className="bar"><i style={{width:`${winner.scores[k]}%`}} /></div></div>)}
-            </div>
-
-            <div className="reason-stack">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span></div>)}</div>
-            {verdictData && <div className="card-verdict"><b>{verdictData.gap.toFixed(1)}pt gap</b><span>{verdictData.strongest} edge · {verdictData.upset} upset risk</span></div>}
-            <div className="ranking card-ranking">{ranked.slice(0,4).map((p,i)=><div className="rank" key={`${p.name}-${i}`}><span>#{i+1} {p.symbol ? `$${p.symbol}` : p.name}</span><b>{Math.round(p.scores.adjustedFinal ?? p.scores.final)}</b></div>)}</div>
-          </>}
-          <div className="card-cta"><span>Battle your Base token</span><b>agentarena.xyz</b></div>
-        </div>
+        <section className="saas-panel sources-panel" id="sources">
+          <div className="saas-panel-head"><div><span>04 / Sources</span><h2>Optional deeper scan sources</h2><p>Keys are stored locally in this browser. Leave them blank for a simple contract scan.</p></div></div>
+          <div className="secondary-grid"><label className="saas-field">Optional BaseScan API key<input aria-label="Optional BaseScan API key" type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/></label><label className="saas-field">Optional Neynar API key<input aria-label="Optional Neynar API key" type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/></label></div>
+          <div className="tool-row"><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear BaseScan</button><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear Neynar</button></div>
+          <label className="saas-field">Paste Base contracts, one per line<textarea aria-label="Paste Base contracts one per line" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" /></label>
+          <div className="tool-row"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}>Cross-check Market</button><button onClick={scanAllSecurity}>Scan Security</button><button onClick={scanAllHolders}>Scan Holders</button><button onClick={scanAllDeployers}>Scan Deployers</button><button onClick={scanAllWhaleFlow}>Whale Flow</button><button onClick={scanAllFarcaster}>Farcaster</button></div>
+          {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
+        </section>
       </div>
     </section>
-
-
-
-
-
-
-
-
-
-
-
-    <section className="export-panel panel glass-panel" id="export">
-      <div className="panel-head"><div><h2>Agent Report Export Pack</h2><p className="panel-kicker">Shareable markdown and machine-readable JSON with evidence, gates, and gaps.</p></div><span className="base-chip">markdown + json</span></div>
-      <div className="export-box">
-        <div><h3>{winner.symbol ? `$${winner.symbol}` : winner.name} Battle Report</h3><p>Export the full agent analysis with ranking, evidence, source coverage, decision gates, risk cards, and next verification tasks.</p></div>
-        <div className="export-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button></div>
-      </div>
-      {reportStatus && <p className="status ok">{reportStatus}</p>}
-    </section>
-
-    <section className="advanced-panel panel glass-panel" id="advanced">
-      <div className="panel-head"><div><h2>Advanced Sources</h2><p className="panel-kicker">Optional keys and bulk tools. Keep empty for a clean single-token scan.</p></div></div>
-      <details className="advanced-drawer">
-        <summary>API keys for deeper scans</summary>
-        <div className="holder-key-row"><label className="visible-field field-inline"><span className="field-hint strong">Optional BaseScan API key</span><input aria-label="Optional BaseScan API key" type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/></label><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear</button></div>
-        <div className="holder-key-row"><label className="visible-field field-inline"><span className="field-hint strong">Optional Neynar API key</span><input aria-label="Optional Neynar API key" type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/></label><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear</button></div>
-      </details>
-      <details className="advanced-drawer">
-        <summary>Bulk battle import</summary>
-        <label className="visible-field"><span className="field-hint strong">Paste Base contracts, one per line</span><textarea aria-label="Paste Base contracts one per line" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" /></label>
-        <div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div>
-        {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
-      </details>
-    </section>
-
   </main>;
 }
 
