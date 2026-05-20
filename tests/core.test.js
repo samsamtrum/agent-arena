@@ -205,6 +205,18 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('base contract deep risk classifies ownership privileges and tax matrix', () => {
+  const risky = { ...baseProject, security: { owner_address: '0x5555555555555555555555555555555555555555', is_honeypot: '0', is_blacklisted: '1', can_take_back_ownership: '1', is_mintable: '1', is_proxy: '1', is_open_source: '0', buy_tax: '3', sell_tax: '12', transfer_tax: '1' } };
+  const deep = core.contractDeepRisk(risky);
+  const sec = core.securityIntel(risky);
+  assert.equal(deep.available, true);
+  assert.match(deep.ownership.status, /Privileged|Dangerous/);
+  assert.match(deep.tax.level, /High|Moderate/);
+  assert.ok(deep.privileges.some(f => /Blacklist|reclaim|Mint|proxy|source/i.test(f.label)));
+  assert.ok(sec.contract);
+  assert.ok(sec.score < 70);
+});
+
 test('verdict trace explains score, caps, gates, and contributions', () => {
   const risky = { ...baseProject, security: null, holders: null, gecko: null, liquidity: 9000, volume: 35000 };
   risky.scores = core.scoreProject(risky);
@@ -306,6 +318,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Base Contract Risk/);
+  assert.match(md, /Ownership finality/);
+  assert.match(md, /Tax matrix/);
   assert.match(md, /Verdict Trace \/ Why This Result/);
   assert.match(md, /Pull up/);
   assert.match(md, /Pull down/);

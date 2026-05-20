@@ -832,28 +832,44 @@ export async function fetchHolderIntel(contract, apiKey) {
   const top20Pct = supply ? sumN(20) / supply * 100 : 0;
   return { holderCount: num(holdersData.message?.match?.(/\d+/)?.[0]) || 0, supply, top1Pct, top5Pct, top10Pct, top20Pct, topHolders: rows.slice(0,20), deployerPct: 0 };
 }
-export function securityIntel(p) {
+export function contractDeepRisk(p) {
   const sec = p.security || null;
-  const flags = [];
-  if (!sec) return { available: false, score: 50, flags: [{ level: 'warn', label: 'Security not checked', detail: 'Run contract security scan for tax, honeypot, owner, and mint signals.' }] };
+  if (!sec) return { available: false, score: 50, ownership: { status: 'Unknown', score: 50, detail: 'Security scan has not run.' }, tax: { buyTax: 0, sellTax: 0, transferTax: 0, level: 'Unknown', flags: [] }, privileges: [], flags: [{ level: 'warn', label: 'Contract scan missing', detail: 'Run GoPlus Base security scan to classify owner privileges, tax, honeypot, and source verification.' }], summary: 'Contract risk unknown until security scan runs.' };
+  const owner = sec.owner_address || sec.owner || '';
+  const ownerActive = owner && !/^0x0{40}$/i.test(owner);
   const buyTax = pct(sec.buy_tax);
   const sellTax = pct(sec.sell_tax);
-  if (boolRisk(sec.is_honeypot)) flags.push({ level: 'danger', label: 'Honeypot risk', detail: 'Security API marks this token as honeypot risk.' });
-  if (boolRisk(sec.is_blacklisted)) flags.push({ level: 'danger', label: 'Blacklist function', detail: 'Contract may include blacklist controls.' });
-  if (boolRisk(sec.can_take_back_ownership)) flags.push({ level: 'danger', label: 'Ownership risk', detail: 'Owner may be able to reclaim control.' });
-  if (boolRisk(sec.is_mintable)) flags.push({ level: 'warn', label: 'Mintable', detail: 'Supply may be expandable by privileged roles.' });
-  if (boolRisk(sec.is_proxy)) flags.push({ level: 'warn', label: 'Proxy contract', detail: 'Implementation may be upgradeable.' });
-  if (buyTax > 5 || sellTax > 5) flags.push({ level: buyTax > 15 || sellTax > 15 ? 'danger' : 'warn', label: 'High tax', detail: `Buy tax ${buyTax.toFixed(1)}%, sell tax ${sellTax.toFixed(1)}%.` });
-  if (sec.is_open_source === '0') flags.push({ level: 'warn', label: 'Unverified source', detail: 'Contract source may not be open/verified.' });
-  if (sec.owner_address && !/^0x0{40}$/i.test(sec.owner_address)) flags.push({ level: 'warn', label: 'Owner present', detail: `Owner address ${shortAddr(sec.owner_address)} should be reviewed.` });
+  const transferTax = pct(sec.transfer_tax);
+  const privileges = [];
+  const flags = [];
+  const addPriv = (level, label, detail, weight) => { privileges.push({ level, label, detail, weight }); flags.push({ level, label, detail, weight }); };
+  if (ownerActive) addPriv('warn', 'Owner active', `Owner ${shortAddr(owner)} still controls contract-level permissions.`, 10);
+  else flags.push({ level: 'good', label: 'No active owner detected', detail: 'Owner is zero/renounced or not returned as active by the security source.', weight: -8 });
+  if (boolRisk(sec.can_take_back_ownership)) addPriv('danger', 'Can reclaim ownership', 'Owner may be able to take back ownership/control.', 22);
+  if (boolRisk(sec.is_mintable)) addPriv('warn', 'Mint privilege', 'Supply may be expandable by privileged roles.', 12);
+  if (boolRisk(sec.is_blacklisted) || boolRisk(sec.blacklist)) addPriv('danger', 'Blacklist control', 'Contract may block or restrict selected wallets.', 22);
+  if (boolRisk(sec.trading_cooldown) || boolRisk(sec.owner_change_balance) || boolRisk(sec.hidden_owner)) addPriv('danger', 'Hidden/privileged owner pattern', 'Ownership privileges may not be final or fully transparent.', 18);
+  if (boolRisk(sec.is_proxy)) addPriv('warn', 'Upgradeable proxy', 'Implementation may be upgradeable after launch.', 10);
+  if (sec.is_open_source === '0') addPriv('warn', 'Unverified source', 'Contract source may not be open/verified.', 10);
+  if (boolRisk(sec.is_honeypot)) flags.push({ level: 'danger', label: 'Honeypot risk', detail: 'Security API marks this token as honeypot risk.', weight: 32 });
+  if (buyTax > 0 || sellTax > 0 || transferTax > 0) flags.push({ level: buyTax > 15 || sellTax > 15 ? 'danger' : buyTax > 5 || sellTax > 5 || transferTax > 5 ? 'warn' : 'good', label: 'Tax matrix', detail: `Buy ${buyTax.toFixed(1)}% · Sell ${sellTax.toFixed(1)}% · Transfer ${transferTax.toFixed(1)}%.`, weight: buyTax > 15 || sellTax > 15 ? 18 : buyTax > 5 || sellTax > 5 || transferTax > 5 ? 9 : -3 });
+  else flags.push({ level: 'good', label: 'No tax returned', detail: 'Security source did not report buy/sell/transfer tax.', weight: -4 });
+  if ((boolRisk(sec.is_blacklisted) || boolRisk(sec.blacklist)) && sellTax > 5) flags.push({ level: 'danger', label: 'Blacklist + sell tax combo', detail: 'Blacklist controls combined with sell tax increase exit risk.', weight: 24 });
+  const ownerRisk = privileges.reduce((s,x)=>s + (x.weight || 0), 0);
+  const ownershipStatus = !ownerActive && ownerRisk < 10 ? 'Renounced / Low control' : ownerRisk >= 45 ? 'Dangerous control' : ownerRisk >= 24 ? 'Privileged owner' : 'Owner active';
+  const taxLevel = boolRisk(sec.is_honeypot) ? 'Honeypot risk' : sellTax > 20 ? 'Severe sell tax' : sellTax > 10 || buyTax > 10 ? 'High tax' : sellTax > 5 || buyTax > 5 || transferTax > 5 ? 'Moderate tax' : 'Low tax';
+  const riskPoints = flags.reduce((s,x)=>s + (x.level === 'danger' ? (x.weight || 18) : x.level === 'warn' ? (x.weight || 8) : -(Math.abs(x.weight || 3))), 0);
+  const score = Math.round(clamp(92 - riskPoints, 5, 98));
+  const summary = `${ownershipStatus} · ${taxLevel} · ${score}/100 contract score.`;
+  return { available: true, score, ownership: { status: ownershipStatus, score: Math.round(clamp(100 - ownerRisk, 0, 100)), owner: ownerActive ? owner : '', detail: ownerActive ? `Owner ${shortAddr(owner)} remains active.` : 'Owner appears renounced/zero or not active.' }, tax: { buyTax, sellTax, transferTax, level: taxLevel, flags: flags.filter(f => /tax|honeypot|blacklist/i.test(f.label)) }, privileges, flags: flags.sort((a,b)=>(b.weight||0)-(a.weight||0)), summary };
+}
+export function securityIntel(p) {
+  const sec = p.security || null;
+  if (!sec) return { available: false, score: 50, flags: [{ level: 'warn', label: 'Security not checked', detail: 'Run contract security scan for tax, honeypot, owner, and mint signals.' }] };
+  const deep = contractDeepRisk(p);
+  const flags = deep.flags.slice(0, 8).map(f => ({ level: f.level, label: f.label, detail: f.detail }));
   if (!flags.length) flags.push({ level: 'good', label: 'No major contract flag', detail: 'Security API did not return major tax/honeypot/owner flags.' });
-  let score = 78;
-  for (const flag of flags) {
-    if (flag.level === 'danger') score -= 24;
-    if (flag.level === 'warn') score -= 9;
-    if (flag.level === 'good') score += 6;
-  }
-  return { available: true, score: clamp(score, 5, 95), buyTax, sellTax, flags };
+  return { available: true, score: clamp(deep.score, 5, 95), buyTax: deep.tax.buyTax, sellTax: deep.tax.sellTax, contract: deep, flags };
 }
 export async function fetchTokenSecurity(contract) {
   if (!isAddress(contract)) throw new Error('Invalid address');
@@ -1497,7 +1513,7 @@ export function evidenceSummary(p) {
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
   const calibration = confidenceCalibration({ ...p, scores });
-  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), trace: verdictTrace(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), trace: verdictTrace(p), contract: contractDeepRisk(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1562,6 +1578,21 @@ export function reportMarkdown(data) {
     (readiness.nextBest?.length ? readiness.nextBest : [{ action: 'No critical scan action', reason: 'Core evidence is currently sufficient.', impact: 'Low', confidenceUnlock: 0, status: 'Ready' }]).slice(0, 3).forEach(a => lines.push(`- Next best scan: **${a.action}** — ${a.reason} · Impact: ${a.impact} · Unlock: ~${a.confidenceUnlock}% · Status: ${a.status}`));
     readiness.gaps.slice(0, 5).forEach(g => lines.push(`- Gap: ${g.status} ${g.name} — ${g.reason}`));
   } else lines.push(`- Scan readiness unavailable.`);
+  lines.push(``);
+  lines.push(`## Base Contract Risk`);
+  const contract = summary?.contract || data.ranking[0]?.summary?.contract;
+  if (contract?.available) {
+    lines.push(`Contract score: **${contract.score}/100** · Ownership: **${contract.ownership.status}** · Tax/Honeypot: **${contract.tax.level}**`);
+    lines.push(`Ownership finality: **${contract.ownership.score}/100** — ${contract.ownership.detail}`);
+    lines.push(`Tax matrix: Buy **${contract.tax.buyTax.toFixed(1)}%** · Sell **${contract.tax.sellTax.toFixed(1)}%** · Transfer **${contract.tax.transferTax.toFixed(1)}%**`);
+    (contract.privileges.length ? contract.privileges : [{ level: 'good', label: 'No major privilege returned', detail: 'Security source did not return dangerous owner privileges.' }]).slice(0, 6).forEach(f => lines.push(`- Privilege: ${f.level.toUpperCase()} — ${f.label}: ${f.detail}`));
+    contract.flags.slice(0, 5).forEach(f => lines.push(`- Contract flag: ${f.level.toUpperCase()} — ${f.label}: ${f.detail}`));
+  } else {
+    lines.push(`Contract score: **Unknown** · Ownership: **Unknown** · Tax/Honeypot: **Unknown**`);
+    lines.push(`Ownership finality: **Unknown** — Run Security Scan to classify owner privileges.`);
+    lines.push(`Tax matrix: Buy **Unknown** · Sell **Unknown** · Transfer **Unknown**`);
+    lines.push(`- Base contract risk unavailable. Run Security Scan to classify owner privileges, tax, honeypot, proxy, and source verification.`);
+  }
   lines.push(``);
   lines.push(`## Token Identity / Pair Integrity`);
   const identity = summary?.identity || data.ranking[0]?.summary?.identity;
