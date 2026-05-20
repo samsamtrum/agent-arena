@@ -30,12 +30,12 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
   await page.getByRole('button', { name: /^\+ Add$/ }).click();
-  await expect(page.getByPlaceholder('Base token/project name')).toHaveCount(4);
+  await expect(page.getByPlaceholder('Base token/project name')).toHaveCount(2);
 
   const names = page.getByPlaceholder('Base token/project name');
-  await names.nth(3).fill('Manual UI QA Token');
+  await names.nth(1).fill('Manual UI QA Token');
   const contracts = page.getByPlaceholder('Paste Base token contract');
-  await contracts.nth(3).fill('0x9999999999999999999999999999999999999999');
+  await contracts.nth(1).fill('0x9999999999999999999999999999999999999999');
 
   await page.getByRole('button', { name: /Save Battle/i }).first().click();
   await expect(page.getByText('Battle saved locally.')).toBeVisible();
@@ -79,7 +79,7 @@ test('strategy simulator, weight presets, saved battles and report sections rema
   await page.getByText('Strategy Simulator').scrollIntoViewIfNeeded();
   const volume = page.locator('input[type="range"]').first();
   await volume.fill('2');
-  await expect(page.getByText(/agent changes|No major agent vote/)).toBeVisible();
+  await expect(page.getByText(/agent changes|No major agent vote/).first()).toBeVisible();
   await page.getByRole('button', { name: 'Reset Scenario' }).click();
 
   const weightsPanel = page.locator('.weights-panel');
@@ -102,6 +102,9 @@ test('strategy simulator, weight presets, saved battles and report sections rema
 });
 
 test('downloaded report files are valid and do not contain broken placeholders', async ({ page }) => {
+  await page.getByPlaceholder('Base token/project name').first().fill('Report QA Token');
+  await page.getByPlaceholder('Paste Base token contract').first().fill('0x9999999999999999999999999999999999999999');
+  await page.getByPlaceholder('GitHub repo or URL').first().fill('facebook/react');
   const mdDownloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Download MD/i }).click();
   const mdDownload = await mdDownloadPromise;
@@ -124,7 +127,7 @@ test('downloaded report files are valid and do not contain broken placeholders',
   const report = JSON.parse(Buffer.concat(jsonChunks).toString('utf8'));
   expect(jsonDownload.suggestedFilename()).toMatch(/agentarena-.*-report\.json$/);
   expect(report.winner).toBeTruthy();
-  expect(report.ranking.length).toBeGreaterThanOrEqual(3);
+  expect(report.ranking.length).toBeGreaterThanOrEqual(1);
   expect(report.ranking[0].reliability).toBeTruthy();
   expect(report.tasks.length).toBeGreaterThan(0);
 });

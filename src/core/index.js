@@ -18,11 +18,9 @@ export const agents = [
   { name: 'Skeptic Agent', icon: 'Bot', color: '#94a3b8', focus: 'weak spots and fake hype detection' }
 ];
 
-export const defaults = [
-  { name: 'MiroShark', symbol: 'MIR', repo: 'aaronjmars/MiroShark', chain: 'Base', contract: '', price: .0039, marketCap: 390000, volume: 20500, liquidity: 72000, stars: 168, commits: 142, mentions: 74, risk: 42, pairUrl: '' },
-  { name: 'AgentKit', symbol: 'AGK', repo: 'AgenKitAI/Agentkit', chain: 'Base', contract: '', price: .0018, marketCap: 250000, volume: 15400, liquidity: 61000, stars: 92, commits: 318, mentions: 52, risk: 34, pairUrl: '' },
-  { name: 'Bankr Skills', symbol: 'BANKR', repo: 'BankrBot/skills', chain: 'Base', contract: '', price: .009, marketCap: 900000, volume: 42000, liquidity: 180000, stars: 1100, commits: 260, mentions: 88, risk: 28, pairUrl: '' }
-];
+export const emptyProject = () => ({ name: '', symbol: '', repo: '', chain: 'Base', contract: '', price: 0, marketCap: 0, volume: 0, liquidity: 0, stars: 0, commits: 0, forks: 0, openIssues: 0, mentions: 0, risk: 50, pairUrl: '', pairAddress: '', dexId: '', pairCreatedAt: 0, website: '', docs: '', xLink: '', farcaster: '', socialKeyword: '', tagline: '', narrative: '' });
+
+export const defaults = [emptyProject()];
 
 export function clamp(n, a = 0, b = 100) { return Math.max(a, Math.min(b, n)); }
 export function num(n) { return Number.isFinite(Number(n)) ? Number(n) : 0; }

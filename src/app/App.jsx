@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Coins, Radio, Trophy, Zap, Search, ExternalLink, Loader2, Code2, Copy, Check, Save, RotateCcw, Trash2, KeyRound, Brain, LockKeyhole } from 'lucide-react';
 const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
+const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 import { toPng } from 'html-to-image';
 import '../styles.css';
-import { agents, defaults, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
 
 function App() {
   const [projects, setProjects] = useState(defaults);
@@ -43,8 +44,11 @@ function App() {
   const [reportStatus, setReportStatus] = useState('');
   window.__AGENT_ARENA_WEIGHTS__ = weights;
   useEffect(() => { setSavedBattles(readSavedBattles()); setApiKey(localStorage.getItem(LLM_KEY) || ''); setBasescanKey(localStorage.getItem(BASESCAN_KEY) || ''); setNeynarKey(localStorage.getItem(NEYNAR_KEY) || ''); setSnapshots(readSnapshots()); setPredictions(readPredictions()); setWeights(readWeights()); }, []);
-  const ranked = useMemo(() => projects.map(p => ({ ...p, scores: scoreProject(p) })).sort((a,b) => (b.scores.adjustedFinal ?? b.scores.final) - (a.scores.adjustedFinal ?? a.scores.final)), [projects]);
-  const winner = ranked[0];
+  const activeProjects = useMemo(() => projects.filter(hasProjectData), [projects]);
+  const ranked = useMemo(() => activeProjects.map(p => ({ ...p, scores: scoreProject(p) })).sort((a,b) => (b.scores.adjustedFinal ?? b.scores.final) - (a.scores.adjustedFinal ?? a.scores.final)), [activeProjects]);
+  const hasBattleData = ranked.length > 0;
+  const displayProject = hasBattleData ? ranked[0] : { ...emptyProject(), name: 'No token loaded', symbol: '', scores: scoreProject(emptyProject()), __empty: true };
+  const winner = displayProject;
   const winnerIntel = getRiskIntel(winner);
   const verdictData = useMemo(() => battleVerdict(ranked), [ranked]);
   const reports = useMemo(() => agentReports(winner, ranked[1]), [winner, ranked]);
@@ -60,7 +64,7 @@ function App() {
   const winnerQuality = dataQuality(winner);
   const caption = useMemo(() => makeCaption(winner, winnerIntel), [winner, winnerIntel]);
   const update = (i, key, value) => setProjects(ps => ps.map((p, idx) => idx === i ? { ...p, [key]: value } : p));
-  const addProject = () => setProjects(ps => [...ps, { name: 'New Base Token', symbol: '', repo: '', chain: 'Base', contract: '', price: 0, marketCap: 100000, volume: 8000, liquidity: 30000, stars: 25, commits: 20, mentions: 15, risk: 50, pairUrl: '', pairAddress: '', dexId: '', pairCreatedAt: 0, website: '', docs: '', xLink: '', farcaster: '', socialKeyword: '', tagline: '', narrative: '' }]);
+  const addProject = () => setProjects(ps => [...ps, emptyProject()]);
   const newBattle = () => { setBattleTitle('Base AI Token Battle'); setProjects(defaults); setSaveStatus('Started a fresh battle.'); };
   const copyMarkdownReport = async () => { await navigator.clipboard.writeText(reportMarkdown(reportData)); setReportStatus('Markdown report copied.'); };
   const downloadMarkdownReport = () => { downloadText(`agentarena-${winner.symbol || winner.name}-report.md`.toLowerCase().replace(/[^a-z0-9.-]+/g,'-'), reportMarkdown(reportData), 'text/markdown'); setReportStatus('Markdown report downloaded.'); };
@@ -487,10 +491,10 @@ function App() {
         <div id="share-card" className="share-card">
           <div className="card-glow" />
           <div className="card-top"><span><Zap size={18}/> {battleTitle}</span><span>AgentArena · Base</span></div>
-          <div className="battle-label">AI TOKEN BATTLE RESULT</div>
-          <div className="winner"><Trophy size={42}/><div><small>AI Consensus Winner</small><h2>{winner.symbol ? `$${winner.symbol}` : winner.name}</h2><p>{winner.name} · {verdict(winner.scores.final)} · {Math.round(winner.scores.final)} / 100</p></div></div>
-          <div className="winner-stats"><span>{money(winner.marketCap)} market cap</span><span>{money(winner.volume)} 24h volume</span><span>{money(winner.liquidity)} liquidity</span><span>{num(winner.priceChange24h).toFixed(1)}% 24h</span><span>{Math.round(winner.scores.confidence)}% confidence</span><span>{winnerQuality.completeness}% complete</span></div>
-          <div className="risk-mini">{winnerIntel.flags.slice(0,3).map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div>
+          <div className="battle-label">{hasBattleData ? 'AI TOKEN BATTLE RESULT' : 'READY FOR ANALYSIS'}</div>
+          <div className="winner"><Trophy size={42}/><div><small>{hasBattleData ? 'AI Consensus Winner' : 'No sample data loaded'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'Import a Base token'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)} / 100` : 'Paste a Base contract or GitHub repo to start.'}</p></div></div>
+          {hasBattleData ? <><div className="winner-stats"><span>{money(winner.marketCap)} market cap</span><span>{money(winner.volume)} 24h volume</span><span>{money(winner.liquidity)} liquidity</span><span>{num(winner.priceChange24h).toFixed(1)}% 24h</span><span>{Math.round(winner.scores.confidence)}% confidence</span><span>{winnerQuality.completeness}% complete</span></div>
+          <div className="risk-mini">{winnerIntel.flags.slice(0,3).map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="empty-state"><b>Clean start</b><span>No demo tokens, no fake ranking, no example numbers.</span></div>}
           <div className="score-radar">
             {['builder','market','meme','safety'].map(k=><div className="radar-item" key={k}><strong>{Math.round(winner.scores[k])}</strong><span>{k}</span></div>)}
           </div>
