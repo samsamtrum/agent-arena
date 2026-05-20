@@ -286,6 +286,54 @@ export function sourcePlugins(p) {
   return { plugins, coverage };
 }
 
+export function evidenceWeighting(p) {
+  const plugins = sourcePlugins(p).plugins;
+  const weights = {
+    security: 18, holders: 17, 'whale-flow': 15, 'market-crosscheck': 14, market: 11,
+    deployer: 9, lp: 7, builder: 4, farcaster: 3, social: 1, 'wallet-labels': 1
+  };
+  const scoreMap = { High: 1, Medium: .65, Low: .35, Missing: 0 };
+  const weighted = plugins.map(src => {
+    const weight = weights[src.id] || 1;
+    let contribution = weight * (scoreMap[src.confidence] ?? .5);
+    if (src.status === 'missing') contribution = 0;
+    if (src.id === 'social' && socialIntel(p).scan.spamScore > 45) contribution *= .45;
+    if (src.id === 'market-crosscheck' && marketCrossCheck(p).available && marketCrossCheck(p).score < 45) contribution *= .45;
+    return { ...src, weight, contribution: Math.round(contribution * 10) / 10 };
+  });
+  const totalWeight = weighted.reduce((s,x)=>s+x.weight,0);
+  const earned = weighted.reduce((s,x)=>s+x.contribution,0);
+  const score = Math.round(clamp(earned / Math.max(1,totalWeight) * 100));
+  const topSources = weighted.filter(x => x.contribution > 0).sort((a,b)=>b.contribution-a.contribution).slice(0,4);
+  const missingCritical = weighted.filter(x => ['security','holders','whale-flow','market-crosscheck'].includes(x.id) && x.status === 'missing');
+  const tier = score >= 82 && missingCritical.length === 0 ? 'Tier A: Verified multi-source' : score >= 62 && missingCritical.length <= 1 ? 'Tier B: Partially verified' : score >= 38 ? 'Tier C: Single-source / weak' : 'Tier D: Unverified';
+  return { score, tier, totalWeight, earned: Math.round(earned * 10) / 10, sources: weighted, topSources, missingCritical };
+}
+export function confidenceCalibration(p, baseConfidence = null) {
+  const weighting = evidenceWeighting(p);
+  const security = securityIntel(p);
+  const holders = holderIntel(p);
+  const whales = whaleFlowIntel(p);
+  const market = marketCrossCheck(p);
+  const conflicts = contradictionDetector(p);
+  let cap = 100;
+  const caps = [];
+  const addCap = (value, reason) => { if (value < cap) cap = value; caps.push({ cap: value, reason }); };
+  if (!security.available && !holders.available) addCap(52, 'Security and holder scans are both missing.');
+  else if (!security.available || !holders.available) addCap(68, 'A core security or holder scan is missing.');
+  if (!market.available) addCap(72, 'Market cross-check is missing.');
+  if (!whales.available) addCap(78, 'Whale/deployer transfer flow is missing.');
+  if (sourcePlugins(p).plugins.filter(x => x.status !== 'missing').length <= 2) addCap(55, 'Only one or two evidence sources are connected.');
+  if (conflicts.severity >= 3) addCap(58, 'Major contradictions reduce confidence.');
+  if (market.available && market.score < 45) addCap(60, 'Market sources disagree.');
+  const raw = baseConfidence ?? (p.scores?.confidence ?? scoreProject(p).confidence ?? 0);
+  const weightedConfidence = clamp(raw * .55 + weighting.score * .45 - conflicts.severity * 2, 0, 100);
+  const calibrated = Math.round(Math.min(weightedConfidence, cap));
+  const unlocks = weighting.missingCritical.map(x => `${x.name}`).slice(0,4);
+  if (!unlocks.length && cap < 100) unlocks.push('Resolve contradiction or mismatched source');
+  return { raw: Math.round(raw), weighted: Math.round(weightedConfidence), calibrated, cap, caps: caps.sort((a,b)=>a.cap-b.cap), tier: weighting.tier, evidenceScore: weighting.score, topSources: weighting.topSources, unlocks };
+}
+
 export function sourceReliability(p) {
   const sp = sourcePlugins(p);
   const conflicts = contradictionDetector(p);
@@ -896,7 +944,9 @@ export function tokenIntelligence(p) {
   const rules = riskRulePack(p);
   const rawFinal = Math.round(scored.adjustedFinal ?? scored.final ?? 0);
   const final = Math.round(clamp(rawFinal - rules.penalty * .35, 0, 100));
-  const confidence = Math.round(clamp((scored.confidence || 0) * .42 + reliability.score * .34 + quality.completeness * .2 - conflicts.severity * 3 - rules.penalty * .25, 0, 100));
+  const preliminaryConfidence = Math.round(clamp((scored.confidence || 0) * .42 + reliability.score * .34 + quality.completeness * .2 - conflicts.severity * 3 - rules.penalty * .25, 0, 100));
+  const calibration = confidenceCalibration({ ...p, scores: scored }, preliminaryConfidence);
+  const confidence = calibration.calibrated;
   const reasons = [];
   const add = (level, label, detail) => reasons.push({ level, label, detail });
   if (quality.completeness < 45) add('warn', 'Missing evidence', `${quality.missing.slice(0, 3).map(x => x.label).join(', ') || 'Key data'} not available yet.`);
@@ -917,7 +967,7 @@ export function tokenIntelligence(p) {
   else if (final >= 38 || reasons.some(r => r.level === 'danger')) label = 'High Risk';
   else label = 'Avoid';
   if (gateRank[rules.gate] > gateRank[label]) label = rules.gate;
-  return { label, score: final, rawScore: rawFinal, confidence, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
+  return { label, score: final, rawScore: rawFinal, confidence, calibration, evidenceTier: calibration.tier, evidenceScore: calibration.evidenceScore, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
 }
 
 export function readSavedBattles() {
@@ -1225,7 +1275,8 @@ export function evidenceSummary(p) {
   const missing = intelligence.missing.map(x => x.label).slice(0, 5);
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
-  return { intelligence, checks, positives, risks, missing, penalties, riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  const calibration = confidenceCalibration({ ...p, scores });
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1272,6 +1323,15 @@ export function reportMarkdown(data) {
   lines.push(`## Decision Gate / Penalty Breakdown`);
   lines.push(`Gate: **${intel?.gate || 'Safe to Watch'}** · Penalty: **-${Math.round(intel?.penalty || 0)}** · Raw score: **${intel?.rawScore ?? data.winner.final}/100**`);
   (summary?.penalties?.length ? summary.penalties : ['No major gate penalty applied.']).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Confidence Calibration`);
+  const cal = intel?.calibration || summary?.calibration;
+  if (cal) {
+    lines.push(`Evidence tier: **${cal.tier}** · Evidence score: **${cal.evidenceScore}/100** · Raw confidence: **${cal.raw}%** · Weighted: **${cal.weighted}%** · Final cap: **${cal.cap}%** · Calibrated: **${cal.calibrated}%**`);
+    (cal.caps?.length ? cal.caps.slice(0, 4).map(c => `${c.reason} (cap ${c.cap}%)`) : ['No confidence cap applied.']).forEach(x => lines.push(`- ${x}`));
+    (cal.topSources?.length ? cal.topSources : []).slice(0, 4).forEach(s => lines.push(`- Source weight: ${s.name} contributes ${s.contribution}/${s.weight} — ${s.detail}`));
+    if (cal.unlocks?.length) lines.push(`- Unlock confidence by: ${cal.unlocks.join(', ')}`);
+  } else lines.push(`- Calibration unavailable.`);
   lines.push(``);
   lines.push(`## Re-scan Intelligence`);
   const delta = data.winner.delta || data.ranking[0]?.delta;

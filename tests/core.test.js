@@ -205,6 +205,20 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('evidence weighting calibrates confidence by source quality', () => {
+  const weak = { ...baseProject, security: null, holders: null, gecko: null, transferFlow: null };
+  weak.scores = core.scoreProject(weak);
+  const weakCal = core.confidenceCalibration(weak);
+  assert.ok(weakCal.calibrated <= weakCal.cap);
+  assert.match(weakCal.tier, /Tier [CD]/);
+  assert.ok(weakCal.unlocks.length);
+
+  const strong = { ...baseProject, scores: core.scoreProject(baseProject) };
+  const strongCal = core.confidenceCalibration(strong);
+  assert.match(strongCal.tier, /Tier [AB]/);
+  assert.ok(strongCal.evidenceScore > weakCal.evidenceScore);
+});
+
 test('risk cards turn gate penalties into actionable remediation', () => {
   const risky = { ...baseProject, security: null, holders: null, gecko: null };
   risky.scores = core.scoreProject(risky);
@@ -246,6 +260,8 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Confidence Calibration/);
+  assert.match(md, /Evidence tier/);
   assert.match(md, /Re-scan Intelligence/);
   assert.match(md, /Risk Cards/);
   assert.match(md, /Remediation Queue/);

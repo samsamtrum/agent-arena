@@ -86,6 +86,8 @@ test('downloaded report files are valid and do not contain broken placeholders',
   expect(mdText).toContain('## Verdict');
   expect(mdText).toContain('## Evidence Summary');
   expect(mdText).toContain('## Decision Gate / Penalty Breakdown');
+  expect(mdText).toContain('## Confidence Calibration');
+  expect(mdText).toContain('Evidence tier:');
   expect(mdText).toContain('## Re-scan Intelligence');
   expect(mdText).toContain('## Risk Cards');
   expect(mdText).toContain('## Remediation Queue');
