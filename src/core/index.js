@@ -317,6 +317,50 @@ export function evidenceWeighting(p) {
   const tier = score >= 82 && missingCritical.length === 0 ? 'Tier A: Verified multi-source' : score >= 62 && missingCritical.length <= 1 ? 'Tier B: Partially verified' : score >= 38 ? 'Tier C: Single-source / weak' : 'Tier D: Unverified';
   return { score, tier, totalWeight, earned: Math.round(earned * 10) / 10, sources: weighted, topSources, missingCritical };
 }
+export function scanReadiness(p) {
+  const plugins = sourcePlugins(p).plugins;
+  const calibration = evidenceWeighting(p);
+  const risk = riskRulePack(p);
+  const security = securityIntel(p);
+  const holders = holderIntel(p);
+  const market = marketCrossCheck(p);
+  const whales = whaleFlowIntel(p);
+  const deployer = deployerIntel(p);
+  const pair = pairIntegrity(p);
+  const blockedHint = detail => /key|BaseScan|Neynar|plan|API/i.test(detail || '');
+  const priorityById = { security: 100, holders: 95, 'market-crosscheck': 88, 'whale-flow': 82, deployer: 70, lp: 58, farcaster: 38, builder: 30, social: 18, market: 16, 'wallet-labels': 12 };
+  const highImpact = new Set(['security','holders','market-crosscheck','whale-flow','deployer']);
+  const scans = plugins.map(src => {
+    let status = src.status === 'missing' ? 'Missing' : src.confidence === 'Low' ? 'Partial' : 'Ready';
+    if (src.status === 'missing' && blockedHint(src.detail)) status = 'Blocked';
+    if (src.id === 'market-crosscheck' && market.available && market.score < 45) status = 'Partial';
+    if (src.id === 'security' && security.available && security.score < 55) status = 'Partial';
+    if (src.id === 'holders' && holders.available && holders.score < 55) status = 'Partial';
+    if (src.id === 'whale-flow' && whales.available && whales.score < 55) status = 'Partial';
+    if (src.id === 'deployer' && deployer.available && deployer.score < 55) status = 'Partial';
+    const critical = highImpact.has(src.id);
+    const impact = critical ? 'High' : ['lp','farcaster','builder'].includes(src.id) ? 'Medium' : 'Low';
+    const weight = calibration.sources.find(x => x.id === src.id)?.weight || 1;
+    return { id: src.id, name: src.name, category: src.category, status, impact, critical, weight, confidence: src.confidence, detail: src.detail };
+  });
+  const gaps = scans.filter(s => ['Missing','Blocked','Partial'].includes(s.status)).map(s => {
+    let reason = s.status === 'Blocked' ? `${s.name} is blocked or requires credentials.` : s.status === 'Missing' ? `${s.name} is missing.` : `${s.name} is partial or weak.`;
+    if (s.id === 'security') reason = 'Contract safety is required before trusting score or gate.';
+    if (s.id === 'holders') reason = 'Holder concentration can overturn bullish market/social signals.';
+    if (s.id === 'market-crosscheck') reason = 'Second market source is needed to catch price/liquidity mismatch.';
+    if (s.id === 'whale-flow') reason = 'Transfer flow can reveal owner distribution or whale pressure.';
+    if (s.id === 'deployer') reason = 'Deployer/owner history explains privilege and launch behavior.';
+    const couldChangeVerdict = s.critical || risk.rules.some(r => r.label.toLowerCase().includes(s.category.toLowerCase().split('/')[0]));
+    const confidenceUnlock = Math.round((s.weight / Math.max(1, calibration.totalWeight)) * 100);
+    return { ...s, priority: (priorityById[s.id] || 10) + (s.status === 'Blocked' ? 7 : 0) + (couldChangeVerdict ? 8 : 0), reason, couldChangeVerdict, confidenceUnlock };
+  }).sort((a,b)=>b.priority-a.priority || b.weight-a.weight);
+  let score = Math.round(scans.reduce((sum, s) => sum + (s.status === 'Ready' ? 100 : s.status === 'Partial' ? 55 : 0) * s.weight, 0) / Math.max(1, scans.reduce((sum, s) => sum + s.weight, 0)));
+  if (pair.score < 50) score = Math.min(score, 58);
+  const level = score >= 82 && !gaps.some(g=>g.critical) ? 'Ready' : score >= 62 ? 'Partial' : score >= 38 ? 'Needs Evidence' : 'Not Ready';
+  const nextBest = gaps.slice(0,3).map(g => ({ action: g.id === 'market-crosscheck' ? 'Run Market Cross-check' : g.id === 'security' ? 'Run Security Scan' : g.id === 'holders' ? 'Run Holder Scan' : g.id === 'whale-flow' ? 'Run Whale Flow Scan' : g.id === 'deployer' ? 'Run Deployer Scan' : g.id === 'builder' ? 'Import GitHub Repo' : g.id === 'farcaster' ? 'Run Farcaster Scan' : g.id === 'social' ? 'Paste social mentions' : `Review ${g.name}`, reason: g.reason, impact: g.impact, confidenceUnlock: g.confidenceUnlock, status: g.status }));
+  return { score, level, scans, gaps, nextBest, blocked: gaps.filter(g=>g.status === 'Blocked'), missingCritical: gaps.filter(g=>g.critical), summary: `${level}: ${score}/100 readiness · ${gaps.length} evidence gaps.` };
+}
+
 export function confidenceCalibration(p, baseConfidence = null) {
   const weighting = evidenceWeighting(p);
   const security = securityIntel(p);
@@ -1053,7 +1097,8 @@ export function tokenIntelligence(p) {
   else if (final >= 38 || reasons.some(r => r.level === 'danger')) label = 'High Risk';
   else label = 'Avoid';
   if (gateRank[rules.gate] > gateRank[label]) label = rules.gate;
-  return { label, score: final, rawScore: rawFinal, confidence, calibration, evidenceTier: calibration.tier, evidenceScore: calibration.evidenceScore, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
+  const readiness = scanReadiness({ ...p, scores: scored });
+  return { label, score: final, rawScore: rawFinal, confidence, calibration, readiness, evidenceTier: calibration.tier, evidenceScore: calibration.evidenceScore, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
 }
 
 export function readSavedBattles() {
@@ -1409,7 +1454,7 @@ export function evidenceSummary(p) {
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
   const calibration = confidenceCalibration({ ...p, scores });
-  return { intelligence, checks, positives, risks, missing, penalties, calibration, identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1456,6 +1501,14 @@ export function reportMarkdown(data) {
   lines.push(`## Decision Gate / Penalty Breakdown`);
   lines.push(`Gate: **${intel?.gate || 'Safe to Watch'}** · Penalty: **-${Math.round(intel?.penalty || 0)}** · Raw score: **${intel?.rawScore ?? data.winner.final}/100**`);
   (summary?.penalties?.length ? summary.penalties : ['No major gate penalty applied.']).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Scan Readiness / Evidence Gaps`);
+  const readiness = intel?.readiness || summary?.readiness;
+  if (readiness) {
+    lines.push(`Readiness: **${readiness.level}** · Score: **${readiness.score}/100** · Gaps: **${readiness.gaps.length}**`);
+    (readiness.nextBest?.length ? readiness.nextBest : [{ action: 'No critical scan action', reason: 'Core evidence is currently sufficient.', impact: 'Low', confidenceUnlock: 0, status: 'Ready' }]).slice(0, 3).forEach(a => lines.push(`- Next best scan: **${a.action}** — ${a.reason} · Impact: ${a.impact} · Unlock: ~${a.confidenceUnlock}% · Status: ${a.status}`));
+    readiness.gaps.slice(0, 5).forEach(g => lines.push(`- Gap: ${g.status} ${g.name} — ${g.reason}`));
+  } else lines.push(`- Scan readiness unavailable.`);
   lines.push(``);
   lines.push(`## Token Identity / Pair Integrity`);
   const identity = summary?.identity || data.ranking[0]?.summary?.identity;

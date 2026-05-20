@@ -205,6 +205,17 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('scan readiness prioritizes missing critical evidence', () => {
+  const partial = { ...baseProject, security: null, holders: null, gecko: null, transferFlow: null };
+  partial.scores = core.scoreProject(partial);
+  const readiness = core.scanReadiness(partial);
+  assert.ok(['Partial', 'Needs Evidence', 'Not Ready'].includes(readiness.level));
+  assert.ok(readiness.gaps.some(g => g.id === 'security'));
+  assert.ok(readiness.gaps.some(g => g.id === 'holders'));
+  assert.match(readiness.nextBest[0].action, /Security|Holder|Market|Whale/);
+  assert.ok(readiness.nextBest[0].confidenceUnlock > 0);
+});
+
 test('adversarial simulation detects rug-pattern proximity and worst scenarios', () => {
   const risky = { ...baseProject, liquidity: 12000, volume: 72000, marketCap: 2800000, priceChange24h: 64, holders: { supply: 1000000, holderCount: 80, topHolders: [{ TokenHolderAddress: baseProject.deployerAddress, TokenHolderQuantity: 420000 }, { TokenHolderAddress: '0x7777777777777777777777777777777777777777', TokenHolderQuantity: 160000 }] }, transferFlow: { transferCount: 40, uniqueWallets: 5, largeTransferCount: 8, netToTopWalletPct: 32, ownerOutPct: 18 } };
   risky.scores = core.scoreProject(risky);
@@ -284,6 +295,8 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Scan Readiness \/ Evidence Gaps/);
+  assert.match(md, /Next best scan/);
   assert.match(md, /Token Identity \/ Pair Integrity/);
   assert.match(md, /Identity score/);
   assert.match(md, /Adversarial Risk Simulation/);
