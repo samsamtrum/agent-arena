@@ -23,16 +23,15 @@ test.afterEach(async () => {
 });
 
 test('loads dashboard, edits battle, saves memory, exports reports', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /AgentArena/i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Import and analyze Base token' })).toBeVisible();
-  await expect(page.getByText('01 / Scan Console').first()).toBeVisible();
-  await expect(page.getByText('03 / Reports')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Analyze one Base token/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paste contract and run analysis' })).toBeVisible();
+  await expect(page.getByText('Step 4')).toBeVisible();
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
-  await page.getByRole('button', { name: /^\+ Add token$/ }).click();
-  await expect(page.getByPlaceholder('Paste Base token contract')).toHaveCount(2);
+  await page.getByRole('button', { name: /^\+ Compare another token$/ }).click();
+  await expect(page.getByPlaceholder('0x... Base token contract')).toHaveCount(2);
 
-  const contracts = page.getByPlaceholder('Paste Base token contract');
+  const contracts = page.getByPlaceholder('0x... Base token contract');
   await contracts.nth(1).fill('0x9999999999999999999999999999999999999999');
 
   const downloads = [];
@@ -42,38 +41,38 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
   await expect(page.getByText(/downloaded/i).first()).toBeVisible();
   expect(downloads.length).toBeGreaterThanOrEqual(2);
 
-  await page.getByRole('button', { name: /^\+ Add token$/ }).click();
-  await expect(page.getByPlaceholder('Paste Base token contract')).toHaveCount(3);
+  await page.getByRole('button', { name: /^\+ Compare another token$/ }).click();
+  await expect(page.getByPlaceholder('0x... Base token contract')).toHaveCount(3);
 });
 
 test('invalid external scans show useful status instead of crashing', async ({ page }) => {
-  await page.getByPlaceholder('Paste Base token contract').first().fill('not-an-address');
-  await page.getByRole('button', { name: /Import$/ }).first().click();
+  await page.getByPlaceholder('0x... Base token contract').first().fill('not-an-address');
+  await page.getByRole('button', { name: /Import only/i }).first().click();
   await expect(page.getByText('Paste a valid Base contract address.')).toBeVisible();
 
-  await page.getByRole('button', { name: /Security Scan/i }).first().click();
+  await page.locator('.token-card').first().getByRole('button', { name: /^Security$/i }).click();
   await expect(page.getByText('Paste/import a valid Base contract first.').first()).toBeVisible();
 
-  await page.getByRole('button', { name: /Holder Scan/i }).first().click();
+  await page.locator('.token-card').first().getByRole('button', { name: /^Holders$/i }).click();
   await expect(page.getByText('Paste/import a valid Base contract first.').first()).toBeVisible();
 
-  await page.getByRole('button', { name: /Whale Flow/i }).first().click();
+  await page.locator('.token-card').first().getByRole('button', { name: /Whale flow/i }).click();
   await expect(page.getByText('Add BaseScan API key first.').first()).toBeVisible();
 
-  await page.getByRole('button', { name: /Farcaster/i }).first().click();
+  await page.locator('.token-card').first().getByRole('button', { name: /Farcaster/i }).click();
   await expect(page.getByText('Add Neynar API key first.').first()).toBeVisible();
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {
-  await page.getByText('03 / Reports').scrollIntoViewIfNeeded();
-  await expect(page.getByText(/Markdown and JSON with ranking/)).toBeVisible();
+  await page.getByText('Step 4').scrollIntoViewIfNeeded();
+  await expect(page.getByText(/Reports include ranking/)).toBeVisible();
   await page.getByRole('button', { name: /Download JSON/i }).click();
   await expect(page.getByText(/downloaded/i).first()).toBeVisible();
 });
 
 test('downloaded report files are valid and do not contain broken placeholders', async ({ page }) => {
-  await page.getByPlaceholder('Paste Base token contract').first().fill('0x9999999999999999999999999999999999999999');
-  await page.getByPlaceholder('GitHub repo or URL').first().fill('facebook/react');
+  await page.getByPlaceholder('0x... Base token contract').first().fill('0x9999999999999999999999999999999999999999');
+  await page.getByPlaceholder('owner/repo or GitHub URL').first().fill('facebook/react');
   const mdDownloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Download MD/i }).click();
   const mdDownload = await mdDownloadPromise;
@@ -121,15 +120,15 @@ test('downloaded report files are valid and do not contain broken placeholders',
 });
 
 test('GitHub import live updates builder fields and bad repos show status', async ({ page }) => {
-  const repoInput = page.getByPlaceholder('GitHub repo or URL').first();
+  const repoInput = page.getByPlaceholder('owner/repo or GitHub URL').first();
   await repoInput.fill('facebook/react');
-  await page.getByRole('button', { name: /^Repo$/i }).first().click();
+  await page.locator('.token-card').first().getByRole('button', { name: /^Repo$/i }).click();
   await expect(page.getByText('Imported facebook/react from GitHub.')).toBeVisible({ timeout: 20_000 });
   await expect(repoInput).toHaveValue('facebook/react');
-  await expect(page.getByRole('button', { name: /^Repo$/i }).first()).toBeVisible();
+  await expect(page.locator('.token-card').first().getByRole('button', { name: /^Repo$/i })).toBeVisible();
 
   await repoInput.fill('definitely-not-a-real-owner-zzzz/not-a-real-repo-zzzz');
-  await page.getByRole('button', { name: /^Repo$/i }).first().click();
+  await page.locator('.token-card').first().getByRole('button', { name: /^Repo$/i }).click();
   await expect(page.getByText(/GitHub repo not found or rate limited/)).toBeVisible({ timeout: 20_000 });
 });
 
@@ -138,16 +137,16 @@ test('external API network failures surface in UI without crashing', async ({ pa
   await page.route('**/api.geckoterminal.com/**', route => route.fulfill({ status: 404, body: 'not found' }));
   await page.route('**/api.gopluslabs.io/**', route => route.fulfill({ status: 429, body: 'rate limited' }));
 
-  const contract = page.getByPlaceholder('Paste Base token contract').first();
+  const contract = page.getByPlaceholder('0x... Base token contract').first();
   await contract.fill('0x4200000000000000000000000000000000000006');
 
-  await page.getByRole('button', { name: /Import$/ }).first().click();
+  await page.getByRole('button', { name: /Import only/i }).first().click();
   await expect(page.getByText(/DexScreener request failed/)).toBeVisible();
 
   await page.locator('.token-card').first().getByRole('button', { name: /^Market$/i }).click();
   await expect(page.getByText(/GeckoTerminal request failed \(404\)/)).toBeVisible();
 
-  await page.locator('.token-card').first().getByRole('button', { name: /Security Scan/i }).click();
+  await page.locator('.token-card').first().getByRole('button', { name: /^Security$/i }).click();
   await expect(page.getByText(/Security request failed \(429\)/)).toBeVisible();
 });
 
@@ -160,9 +159,9 @@ test.describe('responsive smoke', () => {
     test(`${viewport.name} viewport keeps core panels usable`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.reload();
-      await expect(page.getByRole('heading', { name: /AgentArena/i })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Import and analyze Base token' })).toBeVisible();
-      await page.getByText('03 / Reports').scrollIntoViewIfNeeded();
+      await expect(page.getByRole('heading', { name: /Analyze one Base token/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Paste contract and run analysis' })).toBeVisible();
+      await page.getByText('Step 4').scrollIntoViewIfNeeded();
       await expect(page.getByRole('button', { name: /Download MD/i })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(12);
