@@ -191,6 +191,20 @@ test('LP auto confidence improves with pair, liquidity, and lock proof', () => {
   assert.ok(weak.flags.some(f => f.level === 'danger'));
 });
 
+test('risk rule pack gates attractive scores when critical evidence is missing or dangerous', () => {
+  const missingScans = { ...baseProject, security: null, holders: null, gecko: null, scores: core.scoreProject({ ...baseProject, security: null, holders: null, gecko: null }) };
+  const missingIntel = core.tokenIntelligence(missingScans);
+  assert.notEqual(missingIntel.label, 'Safe to Watch');
+  assert.ok(missingIntel.penalty > 0);
+  assert.ok(missingIntel.penaltyBreakdown.some(x => x.label.includes('Missing')));
+
+  const risky = { ...baseProject, priceChange24h: 88, transferFlow: { transferCount: 22, uniqueWallets: 5, largeTransferCount: 9, netToTopWalletPct: 35, ownerOutPct: 28, exchangeLikeCount: 0 }, holders: { supply: 1000000, holderCount: 70, topHolders: [{ TokenHolderAddress: baseProject.deployerAddress, TokenHolderQuantity: 420000 }] } };
+  risky.scores = core.scoreProject(risky);
+  const riskyIntel = core.tokenIntelligence(risky);
+  assert.ok(['High Risk', 'Avoid'].includes(riskyIntel.label));
+  assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
+});
+
 test('report export includes winner, ranking, evidence, and tasks', () => {
   const ranked = [baseProject, weakProject].map(p => ({ ...p, scores: core.scoreProject(p) })).sort((a, b) => b.scores.final - a.scores.final);
   const winner = ranked[0];
@@ -207,6 +221,7 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /AgentArena Token Report/);
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
+  assert.match(md, /Decision Gate \/ Penalty Breakdown/);
   assert.match(md, /Evidence Trail/);
   assert.doesNotThrow(() => JSON.stringify(data));
 });

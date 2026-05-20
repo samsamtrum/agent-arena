@@ -839,6 +839,41 @@ export function scoreProject(p) {
   return { builder, market, meme, safety, confidence, final, adjustedFinal, reliability: reliability.score, reliabilityBadge: reliability.badge, haircut, reasons, quality };
 }
 
+export function riskRulePack(p) {
+  const security = securityIntel(p);
+  const holders = holderIntel(p);
+  const whales = whaleFlowIntel(p);
+  const market = marketCrossCheck(p);
+  const deployer = deployerIntel(p);
+  const social = farcasterIntel(p).available ? farcasterIntel(p) : socialIntel(p);
+  const intel = getRiskIntel(p);
+  const conflicts = contradictionDetector(p);
+  const rules = [];
+  const add = (level, label, detail, penalty, gate = null) => rules.push({ level, label, detail, penalty, gate });
+  if (!security.available) add('warn', 'Missing security scan', 'Contract security is not verified.', 10, 'Speculative');
+  else if (security.score < 45) add('danger', 'Contract danger', security.flags[0]?.label || 'Security scan has severe risk.', 24, 'High Risk');
+  if (!holders.available) add('warn', 'Missing holder scan', 'Holder concentration is unknown.', 8, 'Speculative');
+  else if (holders.score < 45) add('danger', 'Holder concentration', holders.flags[0]?.label || 'Top holders are too concentrated.', 18, 'High Risk');
+  if (!market.available) add('warn', 'Missing market cross-check', 'GeckoTerminal market cross-check has not run.', 7, 'Speculative');
+  else if (market.score < 45) add('warn', 'Market source mismatch', market.flags[0]?.label || 'Market sources disagree.', 12, 'Speculative');
+  if (num(p.volume) > 0 && num(p.liquidity) > 0 && num(p.volume) / Math.max(1, num(p.liquidity)) > 2) add('warn', 'Hot volume on thin liquidity', `Volume/liquidity is ${(num(p.volume) / Math.max(1, num(p.liquidity))).toFixed(2)}x.`, 12, 'Speculative');
+  if (num(p.marketCap) > 0 && num(p.liquidity) > 0 && num(p.marketCap) / Math.max(1, num(p.liquidity)) > 120) add('danger', 'Fragile FDV/liquidity', `FDV/liquidity is ${(num(p.marketCap) / Math.max(1, num(p.liquidity))).toFixed(1)}x.`, 16, 'High Risk');
+  if (num(p.priceChange24h) > 35 && whales.available && whales.direction === 'Owner Distribution') add('danger', 'Price up while owner sends out', 'Momentum conflicts with owner/deployer distribution.', 22, 'High Risk');
+  if (security.available && security.score >= 70 && holders.available && holders.score < 50) add('danger', 'Clean contract, risky holders', 'Security looks clean but holder distribution is still risky.', 14, 'High Risk');
+  const socialBullish = social.confidence === 'High' || social.scan?.sentiment === 'Bullish' || social.score >= 70;
+  if (socialBullish && (holders.score < 50 || whales.score < 45 || deployer.score < 45)) add('danger', 'Suspicious hype', 'Social traction is bullish while wallet/holder risk is weak.', 16, 'High Risk');
+  if ((p.repoUrl || parseRepo(p.repo || '')) && (security.score < 50 || deployer.score < 45)) add('warn', 'Builder cannot override token risk', 'Repo activity does not neutralize contract/deployer risk.', 10, 'Speculative');
+  if (deployer.score < 35 && (p.deployerScan || p.deployerAddress || ownerAddress(p))) add('danger', 'Severe deployer risk', deployer.flags[0]?.label || 'Deployer history is risky.', 22, 'Avoid');
+  conflicts.items?.slice?.(0, 4).filter(c => c.level !== 'good').forEach(c => add(c.level === 'danger' ? 'danger' : 'warn', c.label, c.detail, c.level === 'danger' ? 14 : 8, c.level === 'danger' ? 'High Risk' : 'Speculative'));
+  const penalty = Math.min(45, rules.reduce((sum, r) => sum + r.penalty, 0));
+  const gateOrder = ['Safe to Watch', 'Speculative', 'High Risk', 'Avoid'];
+  const gate = rules.reduce((current, r) => {
+    if (!r.gate) return current;
+    return gateOrder.indexOf(r.gate) > gateOrder.indexOf(current) ? r.gate : current;
+  }, 'Safe to Watch');
+  return { rules, penalty, gate, severe: rules.filter(r => r.level === 'danger').length };
+}
+
 export function tokenIntelligence(p) {
   const scored = p.scores || scoreProject(p);
   const quality = dataQuality(p);
@@ -849,12 +884,15 @@ export function tokenIntelligence(p) {
   const whales = whaleFlowIntel(p);
   const market = marketCrossCheck(p);
   const deployer = deployerIntel(p);
-  const final = Math.round(scored.adjustedFinal ?? scored.final ?? 0);
-  const confidence = Math.round(clamp((scored.confidence || 0) * .45 + reliability.score * .35 + quality.completeness * .2 - conflicts.severity * 3, 0, 100));
+  const rules = riskRulePack(p);
+  const rawFinal = Math.round(scored.adjustedFinal ?? scored.final ?? 0);
+  const final = Math.round(clamp(rawFinal - rules.penalty * .35, 0, 100));
+  const confidence = Math.round(clamp((scored.confidence || 0) * .42 + reliability.score * .34 + quality.completeness * .2 - conflicts.severity * 3 - rules.penalty * .25, 0, 100));
   const reasons = [];
   const add = (level, label, detail) => reasons.push({ level, label, detail });
   if (quality.completeness < 45) add('warn', 'Missing evidence', `${quality.missing.slice(0, 3).map(x => x.label).join(', ') || 'Key data'} not available yet.`);
   if (reliability.criticalMissing) add('warn', 'Critical scans missing', `${reliability.criticalMissing} high-value checks are missing.`);
+  rules.rules.slice(0, 4).forEach(r => add(r.level, r.label, r.detail));
   if (security.available && security.score < 55) add('danger', 'Contract risk', security.flags[0]?.label || 'Security scan has risk flags.');
   if (holders.available && holders.score < 50) add('danger', 'Holder concentration', holders.flags[0]?.label || 'Holder distribution looks risky.');
   if (whales.available && whales.score < 45) add('danger', 'Whale/deployer flow', whales.flags[0]?.label || 'Transfer flow is risky.');
@@ -862,13 +900,15 @@ export function tokenIntelligence(p) {
   if (deployer.score < 45 && (p.deployerScan || p.deployerAddress || ownerAddress(p))) add('danger', 'Deployer risk', deployer.flags[0]?.label || 'Deployer/owner history needs review.');
   if (!reasons.length && confidence >= 65) add('good', 'Evidence acceptable', 'Core data is available and no major contradiction is active.');
   if (!reasons.length) add('warn', 'Early signal only', 'Import more evidence before trusting this score.');
+  const gateRank = { 'Safe to Watch': 0, Speculative: 1, 'High Risk': 2, Avoid: 3, 'Insufficient Data': 4 };
   let label = 'Insufficient Data';
   if (quality.completeness < 35 || confidence < 35) label = 'Insufficient Data';
   else if (final >= 78 && confidence >= 70 && !reasons.some(r => r.level === 'danger')) label = 'Safe to Watch';
   else if (final >= 58 && confidence >= 45 && reasons.filter(r => r.level === 'danger').length <= 1) label = 'Speculative';
   else if (final >= 38 || reasons.some(r => r.level === 'danger')) label = 'High Risk';
   else label = 'Avoid';
-  return { label, score: final, confidence, reliability: reliability.score, completeness: quality.completeness, reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
+  if (gateRank[rules.gate] > gateRank[label]) label = rules.gate;
+  return { label, score: final, rawScore: rawFinal, confidence, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
 }
 
 export function readSavedBattles() {
@@ -1121,8 +1161,9 @@ export function evidenceSummary(p) {
     ...getRiskIntel(p).flags.filter(f => f.level !== 'good').slice(0, 2).map(f => `${f.label}: ${f.detail}`)
   ].filter(Boolean).slice(0, 3);
   const missing = intelligence.missing.map(x => x.label).slice(0, 5);
+  const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
-  return { intelligence, checks, positives, risks, missing, recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights }) {
@@ -1164,6 +1205,10 @@ export function reportMarkdown(data) {
   lines.push(``);
   lines.push(`## Evidence Summary`);
   (summary?.checks || []).forEach(([name, status, detail]) => lines.push(`- **${name}:** ${status} — ${detail}`));
+  lines.push(``);
+  lines.push(`## Decision Gate / Penalty Breakdown`);
+  lines.push(`Gate: **${intel?.gate || 'Safe to Watch'}** · Penalty: **-${Math.round(intel?.penalty || 0)}** · Raw score: **${intel?.rawScore ?? data.winner.final}/100**`);
+  (summary?.penalties?.length ? summary.penalties : ['No major gate penalty applied.']).forEach(x => lines.push(`- ${x}`));
   lines.push(``);
   lines.push(`## Missing Data / Skipped Scans`);
   const missing = summary?.missing?.length ? summary.missing : [];
