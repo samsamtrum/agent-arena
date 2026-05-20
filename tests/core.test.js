@@ -205,6 +205,19 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('token identity and pair integrity catch mismatched or spoof-like pools', () => {
+  const clean = { ...baseProject, gecko: { ...baseProject.gecko, pairAddress: baseProject.pairAddress, poolCount: 1, matchedPreferredPair: true } };
+  const ok = core.pairIntegrity(clean);
+  assert.ok(ok.score >= 60);
+  assert.ok(ok.flags.some(f => /Pair|Base|liquidity|aligned/i.test(f.label)));
+
+  const spoof = { ...baseProject, symbol: 'PEPE', liquidity: 8000, volume: 80000, pairCreatedAt: Date.now() - 3_600_000, gecko: { ...baseProject.gecko, pairAddress: '0x9999999999999999999999999999999999999999', poolCount: 3, matchedPreferredPair: false } };
+  const bad = core.pairIntegrity(spoof);
+  const warnings = core.spoofWarnings(spoof);
+  assert.ok(bad.score < ok.score);
+  assert.ok(warnings.some(w => /spoof|Wash|mismatch|hype|clone/i.test(w.label)));
+});
+
 test('evidence weighting calibrates confidence by source quality', () => {
   const weak = { ...baseProject, security: null, holders: null, gecko: null, transferFlow: null };
   weak.scores = core.scoreProject(weak);
@@ -260,6 +273,8 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Token Identity \/ Pair Integrity/);
+  assert.match(md, /Identity score/);
   assert.match(md, /Confidence Calibration/);
   assert.match(md, /Evidence tier/);
   assert.match(md, /Re-scan Intelligence/);

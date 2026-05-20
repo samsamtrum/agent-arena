@@ -43,6 +43,14 @@ export function tokenFromPair(pair) {
   const token = base.address && base.address.toLowerCase() === ZERO ? quote : base;
   return token || base;
 }
+export const trustedQuoteSymbols = new Set(['WETH','USDC','USDBC','USDbC','DAI','CBETH','AERO']);
+export const famousTokenSymbols = new Set(['ETH','WETH','USDC','USDT','DAI','PEPE','DOGE','SHIB','BTC','WBTC','AERO','VIRTUAL','BRETT']);
+export function pairAgeDays(p) {
+  const ts = num(p.pairCreatedAt);
+  if (!ts) return null;
+  const ms = ts > 1e12 ? ts : ts * 1000;
+  return Math.max(0, (Date.now() - ms) / 86_400_000);
+}
 export function boolRisk(value) { return value === '1' || value === 1 || value === true; }
 export function pct(value) {
   const n = num(value);
@@ -315,6 +323,7 @@ export function confidenceCalibration(p, baseConfidence = null) {
   const holders = holderIntel(p);
   const whales = whaleFlowIntel(p);
   const market = marketCrossCheck(p);
+  const pair = pairIntegrity(p);
   const conflicts = contradictionDetector(p);
   let cap = 100;
   const caps = [];
@@ -326,6 +335,7 @@ export function confidenceCalibration(p, baseConfidence = null) {
   if (sourcePlugins(p).plugins.filter(x => x.status !== 'missing').length <= 2) addCap(55, 'Only one or two evidence sources are connected.');
   if (conflicts.severity >= 3) addCap(58, 'Major contradictions reduce confidence.');
   if (market.available && market.score < 45) addCap(60, 'Market sources disagree.');
+  if (pair.score < 45) addCap(58, 'Token identity or pair integrity is weak.');
   const raw = baseConfidence ?? (p.scores?.confidence ?? scoreProject(p).confidence ?? 0);
   const weightedConfidence = clamp(raw * .55 + weighting.score * .45 - conflicts.severity * 2, 0, 100);
   const calibrated = Math.round(Math.min(weightedConfidence, cap));
@@ -367,6 +377,79 @@ export function adjustedScore(p) {
   const adjustedFinal = clamp(raw.final - haircut, 0, 100);
   const confidenceAdjusted = clamp(raw.confidence * .72 + reliability.score * .28 - reliability.conflicts.severity * 2, 0, 100);
   return { rawFinal: raw.final, adjustedFinal, haircut, confidenceAdjusted, reliability, badge: reliability.badge };
+}
+
+export function tokenIdentity(p) {
+  const flags = [];
+  let score = 55;
+  const add = (level, label, detail, delta = 0) => { flags.push({ level, label, detail }); score += delta; };
+  const contract = String(p.contract || '').toLowerCase();
+  if (isAddress(contract)) add('good', 'Base contract format', `${shortAddr(contract)} is a valid EVM address.`, 12);
+  else add('danger', 'Invalid contract', 'Contract is missing or not an EVM address.', -28);
+  const chain = String(p.chain || 'Base').toLowerCase();
+  if (chain === 'base') add('good', 'Base chain selected', 'Token is scoped to Base.', 8);
+  else add('danger', 'Wrong chain scope', `Expected Base, received ${p.chain || 'unknown'}.`, -24);
+  if (p.pairAddress) add('good', 'Pair address attached', `Primary pair ${shortAddr(p.pairAddress)} is attached.`, 10);
+  else if (p.pairUrl) add('warn', 'Chart-only pair', 'Pair URL exists but pair address is missing.', -8);
+  else add('danger', 'Pair missing', 'No pair address or chart URL is attached.', -18);
+  const gt = p.gecko || null;
+  if (gt?.pairAddress && p.pairAddress && gt.pairAddress.toLowerCase() === p.pairAddress.toLowerCase()) add('good', 'Cross-source pair match', `DexScreener and GeckoTerminal both point to ${shortAddr(p.pairAddress)}.`, 15);
+  else if (gt?.pairAddress && p.pairAddress) add('danger', 'Cross-source pair mismatch', `Dex pair ${shortAddr(p.pairAddress)} vs Gecko pair ${shortAddr(gt.pairAddress)}.`, -24);
+  else if (!gt) add('warn', 'No GeckoTerminal identity check', 'Run Market cross-check to verify the selected pair.', -8);
+  if (gt?.poolName && (p.symbol || p.name)) {
+    const label = `${p.name || ''} ${p.symbol || ''}`.toLowerCase();
+    const pool = String(gt.poolName || '').toLowerCase();
+    if ((p.symbol && pool.includes(String(p.symbol).toLowerCase())) || (p.name && pool.includes(String(p.name).toLowerCase()))) add('good', 'Token label aligns', 'Pool name contains token name or symbol.', 5);
+    else if (label.trim()) add('warn', 'Token label uncertain', `Pool name "${gt.poolName}" does not clearly include ${p.symbol || p.name}.`, -6);
+  }
+  const age = pairAgeDays(p);
+  if (age !== null && age < 2) add('warn', 'Very new pair', `Pair age is ${age.toFixed(1)} days.`, -10);
+  else if (age !== null && age >= 14) add('good', 'Pair age established', `Pair age is ${age.toFixed(0)} days.`, 5);
+  const quote = String(p.quoteSymbol || p.quoteTokenSymbol || '').toUpperCase();
+  if (quote) {
+    if (trustedQuoteSymbols.has(quote)) add('good', 'Trusted quote token', `Quote token ${quote} is common on Base.`, 5);
+    else add('warn', 'Unusual quote token', `Quote token ${quote} is not in the trusted quote list.`, -8);
+  }
+  return { score: clamp(score,0,100), verified: score >= 75 && flags.every(f => f.level !== 'danger'), flags };
+}
+export function pairIntegrity(p) {
+  const id = tokenIdentity(p);
+  const market = marketCrossCheck(p);
+  const flags = [...id.flags];
+  let score = id.score * .45 + 35;
+  const liq = num(p.liquidity), vol = num(p.volume), fdv = num(p.marketCap);
+  const add = (level, label, detail, delta = 0) => { flags.push({ level, label, detail }); score += delta; };
+  if (liq >= 150000) add('good', 'Deep pair liquidity', `${money(liq)} liquidity.`, 14);
+  else if (liq >= 40000) add('good', 'Usable pair liquidity', `${money(liq)} liquidity.`, 8);
+  else if (liq > 0) add('warn', 'Thin pair liquidity', `${money(liq)} liquidity can be fragile.`, -10);
+  else add('danger', 'Liquidity missing', 'Pair liquidity is missing.', -18);
+  const vtl = vol && liq ? vol / Math.max(1, liq) : 0;
+  if (vtl > 3) add('danger', 'Extreme volume/liquidity ratio', `${vtl.toFixed(2)}x volume/liquidity can indicate wash volume or unstable pool.`, -18);
+  else if (vtl > 1.5) add('warn', 'Hot volume/liquidity ratio', `${vtl.toFixed(2)}x volume/liquidity needs monitoring.`, -8);
+  else if (vtl > .1) add('good', 'Sane volume/liquidity ratio', `${vtl.toFixed(2)}x volume/liquidity.`, 5);
+  const ftl = fdv && liq ? fdv / Math.max(1, liq) : 0;
+  if (ftl > 120) add('danger', 'Fragile FDV/liquidity', `${ftl.toFixed(1)}x FDV/liquidity.`, -16);
+  else if (ftl > 45) add('warn', 'Stretched FDV/liquidity', `${ftl.toFixed(1)}x FDV/liquidity.`, -7);
+  const buys = num(p.buys24h), sells = num(p.sells24h);
+  if (buys + sells > 0) {
+    const imbalance = Math.abs(buys - sells) / Math.max(1, buys + sells) * 100;
+    if (imbalance > 70) add('warn', 'Buy/sell imbalance', `24h buys/sells are imbalanced by ${imbalance.toFixed(0)}%.`, -6);
+  }
+  if (market.available && market.score >= 70) add('good', 'Market sources aligned', 'DexScreener and GeckoTerminal are aligned.', 10);
+  else if (market.available && market.score < 45) add('danger', 'Market source conflict', 'DexScreener and GeckoTerminal disagree strongly.', -15);
+  if (p.gecko?.poolCount > 1 && !p.gecko?.matchedPreferredPair) add('warn', 'Multiple pools need review', `${p.gecko.poolCount} Gecko pools found and preferred pair was not matched.`, -8);
+  return { score: clamp(score,0,100), confidence: score >= 75 ? 'High' : score >= 55 ? 'Medium' : score >= 35 ? 'Low' : 'Missing', identity: id, flags: flags.slice(0,12), volToLiq: vtl, fdvToLiq: ftl };
+}
+export function spoofWarnings(p) {
+  const flags = [];
+  const sym = String(p.symbol || '').toUpperCase();
+  const age = pairAgeDays(p);
+  if (famousTokenSymbols.has(sym) && (!age || age < 30) && num(p.liquidity) < 100000) flags.push({ level: 'danger', label: 'Possible clone/spoof symbol', detail: `${sym} is a famous ticker but this pair is young or thin.` });
+  if (num(p.volume) > 0 && num(p.liquidity) > 0 && num(p.volume) / Math.max(1,num(p.liquidity)) > 3) flags.push({ level: 'danger', label: 'Wash-volume pattern', detail: 'Volume is extreme relative to liquidity.' });
+  if (p.gecko?.pairAddress && p.pairAddress && p.gecko.pairAddress.toLowerCase() !== p.pairAddress.toLowerCase()) flags.push({ level: 'danger', label: 'Pair mismatch spoof risk', detail: 'Primary pair differs across market sources.' });
+  if (age !== null && age < 2 && (socialIntel(p).score >= 70 || farcasterIntel(p).score >= 70)) flags.push({ level: 'warn', label: 'New pair with hype', detail: 'Pair is very new while social traction is high.' });
+  if (!flags.length) flags.push({ level: 'good', label: 'No obvious spoof pattern', detail: 'No clone/pair-mismatch pattern detected by current sources.' });
+  return flags;
 }
 
 export function marketCrossCheck(p) {
@@ -921,6 +1004,9 @@ export function riskRulePack(p) {
   if (socialBullish && (holders.score < 50 || whales.score < 45 || deployer.score < 45)) add('danger', 'Suspicious hype', 'Social traction is bullish while wallet/holder risk is weak.', 16, 'High Risk');
   if ((p.repoUrl || parseRepo(p.repo || '')) && (security.score < 50 || deployer.score < 45)) add('warn', 'Builder cannot override token risk', 'Repo activity does not neutralize contract/deployer risk.', 10, 'Speculative');
   if (deployer.score < 35 && (p.deployerScan || p.deployerAddress || ownerAddress(p))) add('danger', 'Severe deployer risk', deployer.flags[0]?.label || 'Deployer history is risky.', 22, 'Avoid');
+  const pair = pairIntegrity(p);
+  if (pair.score < 45) add('danger', 'Weak pair integrity', pair.flags.find(f => f.level === 'danger')?.label || 'Token identity or pool integrity is weak.', 18, 'High Risk');
+  spoofWarnings(p).filter(f => f.level !== 'good').forEach(f => add(f.level === 'danger' ? 'danger' : 'warn', f.label, f.detail, f.level === 'danger' ? 16 : 9, f.level === 'danger' ? 'High Risk' : 'Speculative'));
   conflicts.items?.slice?.(0, 4).filter(c => c.level !== 'good').forEach(c => add(c.level === 'danger' ? 'danger' : 'warn', c.label, c.detail, c.level === 'danger' ? 14 : 8, c.level === 'danger' ? 'High Risk' : 'Speculative'));
   const penalty = Math.min(45, rules.reduce((sum, r) => sum + r.penalty, 0));
   const gateOrder = ['Safe to Watch', 'Speculative', 'High Risk', 'Avoid'];
@@ -1259,6 +1345,7 @@ export function evidenceSummary(p) {
   const intelligence = tokenIntelligence({ ...p, scores });
   const checks = [
     ['Market', marketCrossCheck(p).available ? marketCrossCheck(p).confidence : (num(p.price) || num(p.liquidity) || num(p.volume) ? 'Partial' : 'Missing'), marketCrossCheck(p).flags?.[0]?.label || (num(p.liquidity) ? `${money(p.liquidity)} liquidity` : 'Market data missing')],
+    ['Identity / Pair', pairIntegrity(p).confidence, pairIntegrity(p).flags[0]?.label || 'Pair integrity not checked'],
     ['Security', securityIntel(p).available ? (securityIntel(p).score >= 70 ? 'Clean' : securityIntel(p).score >= 45 ? 'Warning' : 'Danger') : 'Missing', securityIntel(p).flags?.[0]?.label || 'Security scan missing'],
     ['Holders', holderIntel(p).available ? holderIntel(p).distribution.tier : 'Missing', holderIntel(p).flags?.[0]?.label || 'Holder scan missing'],
     ['Whale Flow', whaleFlowIntel(p).available ? whaleFlowIntel(p).direction : 'Missing', whaleFlowIntel(p).flags?.[0]?.label || 'Transfer flow missing'],
@@ -1276,7 +1363,7 @@ export function evidenceSummary(p) {
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
   const calibration = confidenceCalibration({ ...p, scores });
-  return { intelligence, checks, positives, risks, missing, penalties, calibration, riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1323,6 +1410,16 @@ export function reportMarkdown(data) {
   lines.push(`## Decision Gate / Penalty Breakdown`);
   lines.push(`Gate: **${intel?.gate || 'Safe to Watch'}** · Penalty: **-${Math.round(intel?.penalty || 0)}** · Raw score: **${intel?.rawScore ?? data.winner.final}/100**`);
   (summary?.penalties?.length ? summary.penalties : ['No major gate penalty applied.']).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Token Identity / Pair Integrity`);
+  const identity = summary?.identity || data.ranking[0]?.summary?.identity;
+  const pair = summary?.pairIntegrity || data.ranking[0]?.summary?.pairIntegrity;
+  const spoof = summary?.spoofWarnings || data.ranking[0]?.summary?.spoofWarnings || [];
+  if (pair) {
+    lines.push(`Identity score: **${identity?.score ?? 0}/100** · Pair integrity: **${Math.round(pair.score)}/100** · Confidence: **${pair.confidence}**`);
+    pair.flags.slice(0, 6).forEach(f => lines.push(`- ${f.level.toUpperCase()}: ${f.label} — ${f.detail}`));
+    spoof.slice(0, 4).forEach(f => lines.push(`- Spoof check: ${f.level.toUpperCase()} — ${f.label}: ${f.detail}`));
+  } else lines.push(`- Identity/pair integrity unavailable.`);
   lines.push(``);
   lines.push(`## Confidence Calibration`);
   const cal = intel?.calibration || summary?.calibration;
