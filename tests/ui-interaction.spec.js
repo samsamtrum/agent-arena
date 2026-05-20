@@ -23,9 +23,10 @@ test.afterEach(async () => {
 });
 
 test('loads dashboard, edits battle, saves memory, exports reports', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /Analyze one Base token/i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Paste contract and run analysis' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Rank multiple Base tokens/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Paste contracts and rank the battle' })).toBeVisible();
   await expect(page.getByText('Step 4')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Token leaderboard' })).toBeVisible();
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
   await page.getByRole('button', { name: /^\+ Compare another token$/ }).click();
@@ -61,6 +62,16 @@ test('invalid external scans show useful status instead of crashing', async ({ p
 
   await page.locator('.token-card').first().getByRole('button', { name: /Farcaster/i }).click();
   await expect(page.getByText('Add Neynar API key first.').first()).toBeVisible();
+});
+
+test('multi-contract entry shows ranking table and top one effect', async ({ page }) => {
+  await page.getByLabel('Paste multiple Base contracts').fill('0x4200000000000000000000000000000000000006\n0x9999999999999999999999999999999999999999');
+  await page.getByRole('button', { name: /Import and rank battle/i }).click();
+  await expect(page.getByText(/imported/i).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.leaderboard-row')).toHaveCount(1);
+  await expect(page.locator('.leaderboard-row.top-one')).toHaveCount(1);
+  await expect(page.locator('.winner-glow')).toBeVisible();
+  await expect(page.getByText(/TOP 1 TOKEN/i)).toBeVisible();
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {
@@ -159,8 +170,8 @@ test.describe('responsive smoke', () => {
     test(`${viewport.name} viewport keeps core panels usable`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.reload();
-      await expect(page.getByRole('heading', { name: /Analyze one Base token/i })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Paste contract and run analysis' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Rank multiple Base tokens/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Paste contracts and rank the battle' })).toBeVisible();
       await page.getByText('Step 4').scrollIntoViewIfNeeded();
       await expect(page.getByRole('button', { name: /Download MD/i })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

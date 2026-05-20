@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Coins, Radio, Trophy, Zap, Search, ExternalLink, Loader2, Code2, Copy, Check, Save, RotateCcw, Trash2, KeyRound, Brain, LockKeyhole } from 'lucide-react';
+import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Coins, Radio, Trophy, Zap, Search, ExternalLink, Loader2, Code2, Copy, Check, Save, RotateCcw, Trash2, KeyRound, Brain, LockKeyhole, Crown } from 'lucide-react';
 const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
 const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 import { toPng } from 'html-to-image';
@@ -464,26 +464,31 @@ function App() {
     <section className="ux-hero" id="scan">
       <div className="ux-hero-main">
         <div className="saas-eyebrow"><img src="/avatar-192.png" alt="AgentArena avatar"/> Base AI Token Risk Dashboard</div>
-        <h1>Analyze one Base token. Get a clear risk verdict.</h1>
-        <p className="saas-tagline">Paste a contract, run the main scan, then export a verifiable report. Advanced scans stay available, but the primary path is simple.</p>
+        <h1>Rank multiple Base tokens. Find the strongest signal.</h1>
+        <p className="saas-tagline">Paste one contract or a full list, analyze the battle, then review the leaderboard and export a verifiable report.</p>
         <div className="ux-stepper" aria-label="Main workflow">
-          <span className="active"><b>1</b> Paste contract</span>
-          <span><b>2</b> Analyze token</span>
-          <span><b>3</b> Review verdict</span>
+          <span className="active"><b>1</b> Paste contracts</span>
+          <span><b>2</b> Analyze battle</span>
+          <span><b>3</b> Review leaderboard</span>
           <span><b>4</b> Export report</span>
         </div>
       </div>
       <div className="ux-summary-card">
         <span>Current verdict</span>
-        <strong>{hasBattleData ? winnerIntelV2.label : 'Ready to scan'}</strong>
-        <p>{hasBattleData ? `${winnerIntelV2.score}/100 · ${winnerIntelV2.confidence}% confidence · ${winnerQuality.completeness}% complete` : 'No demo metrics. No fake token data. Start with a real Base contract.'}</p>
+        <strong>{hasBattleData ? `#1 ${winner.symbol ? `$${winner.symbol}` : winner.name || 'Token'}` : 'Ready to rank'}</strong>
+        <p>{hasBattleData ? `${winnerIntelV2.label} · ${winnerIntelV2.score}/100 · ${winnerIntelV2.confidence}% confidence` : 'No demo metrics. No fake token data. Start with real Base contracts.'}</p>
       </div>
     </section>
 
     <section className="ux-workspace">
       <section className="ux-primary-card saas-panel">
-        <div className="saas-panel-head ux-head"><div><span>Step 1</span><h2>Paste contract and run analysis</h2><p>This is the main action. Import is separate if you only want market metadata first.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
+        <div className="saas-panel-head ux-head"><div><span>Step 1</span><h2>Paste contracts and rank the battle</h2><p>Add one Base contract or paste many at once. AgentArena ranks every imported token by evidence-backed risk score.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
         <label className="saas-field compact-title">Battle title<input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
+        <div className="bulk-entry-card">
+          <label className="saas-field">Multiple Base contracts<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one contract per line\n0x... paste another contract"} /></label>
+          <div className="bulk-entry-actions"><button className="saas-btn primary" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank battle</button><span>Or fill the single-token cards below for manual comparison.</span></div>
+          {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') || bulkStatus.includes('invalid') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
+        </div>
         <div className="token-stack">
         {projects.map((p,i)=><article className="token-card ux-token-card" key={i}>
           <header><div><small>Token {i+1}</small><h3>{p.symbol ? `$${p.symbol}` : p.name || 'New scan'}</h3><span>{p.contract ? shortAddr(p.contract) : 'Paste a Base contract address'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
@@ -510,12 +515,25 @@ function App() {
       </section>
 
       <section className="ux-results-grid" id="verdict">
-        <div id="share-card" className="verdict-card ux-verdict-card">
-          <div className="verdict-header"><span>Step 2 · Result</span><b>{hasBattleData ? 'Live analysis' : 'Waiting for input'}</b></div>
-          <div className="verdict-title"><Trophy size={36}/><div><small>{hasBattleData ? 'Top token' : 'Empty state'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'No token analyzed yet'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)}/100` : 'Paste a real Base contract above. The dashboard will stay blank until data is imported.'}</p></div></div>
+        <div id="share-card" className={`verdict-card ux-verdict-card ${hasBattleData ? 'winner-glow' : ''}`}>
+          <div className="verdict-header"><span>Step 2 · Top 1 Winner</span><b>{hasBattleData ? 'Live leaderboard' : 'Waiting for input'}</b></div>
+          <div className="verdict-title"><div className="winner-crown"><Crown size={36}/></div><div><small>{hasBattleData ? 'TOP 1 TOKEN' : 'Empty state'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'No token analyzed yet'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)}/100` : 'Paste a real Base contract above. The dashboard will stay blank until data is imported.'}</p></div></div>
           {hasBattleData ? <><div className="verdict-metrics"><div><strong>{winnerIntelV2.score}</strong><span>Risk score</span></div><div><strong>{winnerIntelV2.confidence}%</strong><span>Confidence</span></div><div><strong>{winnerQuality.completeness}%</strong><span>Complete</span></div></div><div className="risk-tags">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="clean-empty"><b>No fake sample loaded</b><span>No demo market cap, no fake volume, no placeholder score.</span></div>}
         </div>
-        <div className="saas-panel evidence-panel"><div className="saas-panel-head"><div><span>Step 3 · Evidence</span><h2>Why this verdict</h2></div></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Evidence appears after Analyze Token.</p>}</div>
+        <div className="saas-panel evidence-panel"><div className="saas-panel-head"><div><span>Step 3 · Evidence</span><h2>Why Top 1 wins</h2></div></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Evidence appears after Analyze Token.</p>}</div>
+      </section>
+
+
+      <section className="saas-panel leaderboard-panel" id="leaderboard">
+        <div className="saas-panel-head"><div><span>Step 3 · Ranking Table</span><h2>Token leaderboard</h2><p>Every imported contract is sorted by adjusted risk score. Top 1 gets the winner highlight.</p></div><span className="mini-chip">{ranked.length || 0} ranked</span></div>
+        {hasBattleData ? <div className="leaderboard-list">{ranked.map((p, idx) => { const intel = tokenIntelligence(p); const quality = dataQuality(p); return <div className={`leaderboard-row ${idx === 0 ? 'top-one' : ''}`} key={`${projectId(p)}-${idx}`}>
+          <div className="rank-badge">{idx === 0 ? <Crown size={16}/> : `#${idx + 1}`}</div>
+          <div className="rank-token"><b>{p.symbol ? `$${p.symbol}` : p.name || shortAddr(p.contract) || 'Token'}</b><span>{p.contract ? shortAddr(p.contract) : p.name || 'Manual token'}</span></div>
+          <div><strong>{Math.round(p.scores.adjustedFinal ?? p.scores.final ?? 0)}</strong><span>Score</span></div>
+          <div><strong>{intel.confidence}%</strong><span>Confidence</span></div>
+          <div><strong>{quality.completeness}%</strong><span>Complete</span></div>
+          <div className={`rank-verdict ${scoreClass(p.scores.adjustedFinal ?? p.scores.final)}`}>{idx === 0 ? 'TOP 1 · ' : ''}{intel.label}</div>
+        </div>})}</div> : <div className="clean-empty"><b>No ranking yet</b><span>Paste multiple real Base contracts to generate the leaderboard.</span></div>}
       </section>
 
       <section className="saas-panel report-panel" id="reports">
@@ -528,7 +546,7 @@ function App() {
         <summary><span>Advanced sources and bulk tools</span><small>Optional API keys, bulk import, and deeper scans</small></summary>
         <div className="secondary-grid"><label className="saas-field">Optional BaseScan API key<input aria-label="Optional BaseScan API key" type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/></label><label className="saas-field">Optional Neynar API key<input aria-label="Optional Neynar API key" type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/></label></div>
         <div className="tool-row"><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear BaseScan</button><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear Neynar</button></div>
-        <label className="saas-field">Paste Base contracts, one per line<textarea aria-label="Paste Base contracts one per line" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" /></label>
+        <label className="saas-field">Bulk contracts mirror<textarea aria-label="Paste Base contracts one per line" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" /></label>
         <div className="tool-row"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}>Cross-check Market</button><button onClick={scanAllSecurity}>Scan Security</button><button onClick={scanAllHolders}>Scan Holders</button><button onClick={scanAllDeployers}>Scan Deployers</button><button onClick={scanAllWhaleFlow}>Whale Flow</button><button onClick={scanAllFarcaster}>Farcaster</button></div>
         {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
       </details>
