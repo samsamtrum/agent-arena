@@ -5,7 +5,7 @@ const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
 const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 import { toPng } from 'html-to-image';
 import '../styles.css';
-import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
 
 function App() {
   const [projects, setProjects] = useState(defaults);
@@ -42,6 +42,7 @@ function App() {
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [scenario, setScenario] = useState({ volumeMultiplier: 1, liquidityMultiplier: 1, mentionsMultiplier: 1, priceMoveDelta: 0, riskDelta: 0, lpStatus: 'same', socialBoost: false });
   const [reportStatus, setReportStatus] = useState('');
+  const [analyzeStatus, setAnalyzeStatus] = useState({});
   window.__AGENT_ARENA_WEIGHTS__ = weights;
   useEffect(() => { setSavedBattles(readSavedBattles()); setApiKey(localStorage.getItem(LLM_KEY) || ''); setBasescanKey(localStorage.getItem(BASESCAN_KEY) || ''); setNeynarKey(localStorage.getItem(NEYNAR_KEY) || ''); setSnapshots(readSnapshots()); setPredictions(readPredictions()); setWeights(readWeights()); }, []);
   const activeProjects = useMemo(() => projects.filter(hasProjectData), [projects]);
@@ -62,6 +63,7 @@ function App() {
   const scenarioResult = useMemo(() => scenarioAnalysis(winner, ranked[1], scenario), [winner, ranked, scenario]);
   const reportData = useMemo(() => buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights }), [ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights]);
   const winnerQuality = dataQuality(winner);
+  const winnerIntelV2 = useMemo(() => tokenIntelligence(winner), [winner]);
   const caption = useMemo(() => makeCaption(winner, winnerIntel), [winner, winnerIntel]);
   const update = (i, key, value) => setProjects(ps => ps.map((p, idx) => idx === i ? { ...p, [key]: value } : p));
   const addProject = () => setProjects(ps => [...ps, emptyProject()]);
@@ -403,6 +405,50 @@ function App() {
       setImports(s => ({ ...s, [i]: err.message || 'Import failed.' }));
     }
   };
+  const analyzeToken = async (i) => {
+    const current = projects[i] || {};
+    const contract = current.contract?.trim();
+    if (!isAddress(contract)) return setAnalyzeStatus(st => ({ ...st, [i]: 'Paste a valid Base contract first.' }));
+    setAnalyzeStatus(st => ({ ...st, [i]: 'loading' }));
+    const next = { ...current };
+    const notes = [];
+    try {
+      try {
+        const result = await fetchBaseProject(contract, next);
+        Object.assign(next, result.project);
+        if (result.warnings?.length) notes.push(...result.warnings);
+      } catch (err) { notes.push(`Import: ${err.message || 'failed'}`); }
+      try {
+        next.gecko = await fetchGeckoMarket(contract, next.pairAddress);
+      } catch (err) { notes.push(`Market: ${err.message || 'failed'}`); }
+      try {
+        const security = await fetchTokenSecurity(contract);
+        if (!security) throw new Error('No security result returned');
+        const secIntel = securityIntel({ security });
+        next.security = security;
+        next.risk = Math.round(clamp((next.risk || 45) * .55 + (100 - secIntel.score) * .45, 5, 95));
+      } catch (err) { notes.push(`Security: ${err.message || 'failed'}`); }
+      if (basescanKey.trim()) {
+        try { next.holders = await fetchHolderIntel(contract, basescanKey.trim()); } catch (err) { notes.push(`Holders: ${err.message || 'failed'}`); }
+        try { next.transferFlow = await fetchTransferFlow(contract, basescanKey.trim()); } catch (err) { notes.push(`Whale flow: ${err.message || 'failed'}`); }
+        const deployer = next.deployerAddress || ownerAddress(next);
+        if (isAddress(deployer || '')) {
+          try { next.deployerAddress = deployer; next.deployerScan = await fetchDeployerScan(deployer, basescanKey.trim()); } catch (err) { notes.push(`Deployer: ${err.message || 'failed'}`); }
+        }
+      } else notes.push('BaseScan key missing: holder, whale, deployer skipped');
+      if (neynarKey.trim()) {
+        const query = next.socialKeyword || next.symbol || next.name;
+        if (query) {
+          try { next.farcasterScan = await fetchFarcasterScan(query, neynarKey.trim()); next.socialKeyword = next.socialKeyword || query; } catch (err) { notes.push(`Farcaster: ${err.message || 'failed'}`); }
+        }
+      } else notes.push('Neynar key missing: Farcaster skipped');
+      setProjects(ps => ps.map((p, idx) => idx === i ? { ...p, ...next } : p));
+      const intel = tokenIntelligence({ ...next, scores: scoreProject(next) });
+      setAnalyzeStatus(st => ({ ...st, [i]: `Analyze complete · ${intel.label} · ${intel.score}/100 · ${intel.confidence}% confidence${notes.length ? ` · ${notes.slice(0, 2).join('; ')}` : ''}` }));
+    } catch (err) {
+      setAnalyzeStatus(st => ({ ...st, [i]: err.message || 'Analyze failed.' }));
+    }
+  };
 
   return <main>
     <section className="hero">
@@ -442,8 +488,9 @@ function App() {
             <div className="setup-block-head"><b>1. Quick import</b><span>Fastest path: paste Base contract, then import market/security data.</span></div>
             <div className="import-row">
               <input value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" />
-              <button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
+              <button className="primary-action" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Zap size={17}/>} Analyze Token</button><button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
             </div>
+            {analyzeStatus[i] && analyzeStatus[i] !== 'loading' && <p className={analyzeStatus[i].includes('complete') ? 'status ok' : 'status'}>{analyzeStatus[i]}</p>}
             {imports[i] && imports[i] !== 'loading' && <p className={imports[i].startsWith('Imported') ? 'status ok' : 'status'}>{imports[i]}</p>}
             {marketStatus[i] && marketStatus[i] !== 'loading' && <p className={marketStatus[i].includes('complete') ? 'status ok' : 'status'}>{marketStatus[i]}</p>}
             <div className="import-row repo-row"><input value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" /><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}>{repoImports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Code2 size={17}/>} Repo</button></div>
@@ -480,8 +527,8 @@ function App() {
           <div className="card-top"><span><Zap size={18}/> {battleTitle}</span><span>AgentArena · Base</span></div>
           <div className="battle-label">{hasBattleData ? 'AI TOKEN BATTLE RESULT' : 'READY FOR ANALYSIS'}</div>
           <div className="winner"><Trophy size={42}/><div><small>{hasBattleData ? 'AI Consensus Winner' : 'No sample data loaded'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'Import a Base token'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)} / 100` : 'Paste a Base contract or GitHub repo to start.'}</p></div></div>
-          {hasBattleData ? <><div className="winner-stats"><span>{money(winner.marketCap)} market cap</span><span>{money(winner.volume)} 24h volume</span><span>{money(winner.liquidity)} liquidity</span><span>{num(winner.priceChange24h).toFixed(1)}% 24h</span><span>{Math.round(winner.scores.confidence)}% confidence</span><span>{winnerQuality.completeness}% complete</span></div>
-          <div className="risk-mini">{winnerIntel.flags.slice(0,3).map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="empty-state"><b>Clean start</b><span>No demo tokens, no fake ranking, no example numbers.</span></div>}
+          {hasBattleData ? <><div className="verdict-panel"><b>{winnerIntelV2.label}</b><span>{winnerIntelV2.score}/100 · {winnerIntelV2.confidence}% confidence · {winnerIntelV2.completeness}% complete</span></div><div className="winner-stats"><span>{money(winner.marketCap)} market cap</span><span>{money(winner.volume)} 24h volume</span><span>{money(winner.liquidity)} liquidity</span><span>{num(winner.priceChange24h).toFixed(1)}% 24h</span><span>{Math.round(winner.scores.confidence)}% confidence</span><span>{winnerQuality.completeness}% complete</span></div>
+          <div className="risk-mini">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="empty-state"><b>Clean start</b><span>No demo tokens, no fake ranking, no example numbers.</span></div>}
           {hasBattleData && <>
             <div className="score-radar">
               {['builder','market','meme','safety'].map(k=><div className="radar-item" key={k}><strong>{Math.round(winner.scores[k])}</strong><span>{k}</span></div>)}

@@ -838,6 +838,39 @@ export function scoreProject(p) {
   const adjustedFinal = clamp(final - haircut);
   return { builder, market, meme, safety, confidence, final, adjustedFinal, reliability: reliability.score, reliabilityBadge: reliability.badge, haircut, reasons, quality };
 }
+
+export function tokenIntelligence(p) {
+  const scored = p.scores || scoreProject(p);
+  const quality = dataQuality(p);
+  const reliability = sourceReliability({ ...p, scores: scored, __skipAdjusted: true });
+  const conflicts = contradictionDetector(p);
+  const security = securityIntel(p);
+  const holders = holderIntel(p);
+  const whales = whaleFlowIntel(p);
+  const market = marketCrossCheck(p);
+  const deployer = deployerIntel(p);
+  const final = Math.round(scored.adjustedFinal ?? scored.final ?? 0);
+  const confidence = Math.round(clamp((scored.confidence || 0) * .45 + reliability.score * .35 + quality.completeness * .2 - conflicts.severity * 3, 0, 100));
+  const reasons = [];
+  const add = (level, label, detail) => reasons.push({ level, label, detail });
+  if (quality.completeness < 45) add('warn', 'Missing evidence', `${quality.missing.slice(0, 3).map(x => x.label).join(', ') || 'Key data'} not available yet.`);
+  if (reliability.criticalMissing) add('warn', 'Critical scans missing', `${reliability.criticalMissing} high-value checks are missing.`);
+  if (security.available && security.score < 55) add('danger', 'Contract risk', security.flags[0]?.label || 'Security scan has risk flags.');
+  if (holders.available && holders.score < 50) add('danger', 'Holder concentration', holders.flags[0]?.label || 'Holder distribution looks risky.');
+  if (whales.available && whales.score < 45) add('danger', 'Whale/deployer flow', whales.flags[0]?.label || 'Transfer flow is risky.');
+  if (market.available && market.score < 45) add('warn', 'Market mismatch', market.flags[0]?.label || 'Market sources disagree.');
+  if (deployer.score < 45 && (p.deployerScan || p.deployerAddress || ownerAddress(p))) add('danger', 'Deployer risk', deployer.flags[0]?.label || 'Deployer/owner history needs review.');
+  if (!reasons.length && confidence >= 65) add('good', 'Evidence acceptable', 'Core data is available and no major contradiction is active.');
+  if (!reasons.length) add('warn', 'Early signal only', 'Import more evidence before trusting this score.');
+  let label = 'Insufficient Data';
+  if (quality.completeness < 35 || confidence < 35) label = 'Insufficient Data';
+  else if (final >= 78 && confidence >= 70 && !reasons.some(r => r.level === 'danger')) label = 'Safe to Watch';
+  else if (final >= 58 && confidence >= 45 && reasons.filter(r => r.level === 'danger').length <= 1) label = 'Speculative';
+  else if (final >= 38 || reasons.some(r => r.level === 'danger')) label = 'High Risk';
+  else label = 'Avoid';
+  return { label, score: final, confidence, reliability: reliability.score, completeness: quality.completeness, reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
+}
+
 export function readSavedBattles() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
 }
