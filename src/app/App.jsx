@@ -466,8 +466,8 @@ function App() {
         <div className="brand-row"><img src="/avatar-192.png" alt="AgentArena avatar" className="project-avatar"/><div className="badge"><Radio size={16}/> Base-only AI Token Intelligence</div></div>
         <h1>AgentArena</h1>
         <p className="tagline">A production-grade Base token intelligence cockpit for contract risk, liquidity exits, holder pressure, market proof, and evidence-backed verdicts.</p>
-        <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Analyze Token</a><a href="#export" className="btn"><Download size={18}/> Export Report</a><button onClick={saveBattle} className="btn ghost"><Save size={18}/> Save Snapshot</button></div>
-        <div className="trust-strip"><span>Base-only</span><span>No fake scans</span><span>Risk-gated verdicts</span><span>CI verified</span></div>
+        <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Analysis</a><a href="#export" className="btn"><Download size={18}/> Export Report</a></div>
+        <div className="trust-strip"><span>Base-only</span><span>No fake scans</span><span>Evidence-gated</span></div>
       </div>
       <div className="hero-dashboard" aria-label="AgentArena workflow summary">
         <div><small>01</small><b>Import</b><span>Paste a Base contract or repo.</span></div>
@@ -477,7 +477,9 @@ function App() {
     </section>
 
 
-    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Analyze</a><a href="#advanced">Advanced</a><a href="#export">Export</a></section>
+    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Analyze</a><a href="#export">Export</a><a href="#advanced">Advanced</a></section>
+
+    <section className="flow-intro" aria-label="Analysis flow"><div><b>1</b><span>Paste Base contract</span></div><div><b>2</b><span>Run evidence checks</span></div><div><b>3</b><span>Read verdict</span></div><div><b>4</b><span>Export report</span></div></section>
 
     <section className="grid" id="arena">
       <div className="panel controls command-panel">
@@ -559,6 +561,16 @@ function App() {
 
 
 
+
+    <section className="export-panel panel glass-panel" id="export">
+      <div className="panel-head"><div><h2>Agent Report Export Pack</h2><p className="panel-kicker">Shareable markdown and machine-readable JSON with evidence, gates, and gaps.</p></div><span className="base-chip">markdown + json</span></div>
+      <div className="export-box">
+        <div><h3>{winner.symbol ? `$${winner.symbol}` : winner.name} Battle Report</h3><p>Export the full agent analysis with ranking, evidence, source coverage, decision gates, risk cards, and next verification tasks.</p></div>
+        <div className="export-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button></div>
+      </div>
+      {reportStatus && <p className="status ok">{reportStatus}</p>}
+    </section>
+
     <section className="advanced-panel panel glass-panel" id="advanced">
       <div className="panel-head"><div><h2>Advanced Sources</h2><p className="panel-kicker">Optional keys and bulk tools. Keep empty for a clean single-token scan.</p></div></div>
       <details className="advanced-drawer">
@@ -572,15 +584,6 @@ function App() {
         <div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div>
         {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
       </details>
-    </section>
-
-    <section className="export-panel panel glass-panel" id="export">
-      <div className="panel-head"><div><h2>Agent Report Export Pack</h2><p className="panel-kicker">Shareable markdown and machine-readable JSON with evidence, gates, and gaps.</p></div><span className="base-chip">markdown + json</span></div>
-      <div className="export-box">
-        <div><h3>{winner.symbol ? `$${winner.symbol}` : winner.name} Battle Report</h3><p>Export the full agent analysis with ranking, evidence, source coverage, self-review, debate loop, tasks, backtesting stats, and strategy simulation.</p></div>
-        <div className="export-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button></div>
-      </div>
-      {reportStatus && <p className="status ok">{reportStatus}</p>}
     </section>
 
   </main>;
