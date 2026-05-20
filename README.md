@@ -1,5 +1,7 @@
 # AgentArena
 
+<p align="center"><img src="public/avatar-192.png" alt="AgentArena avatar" width="96" height="96"></p>
+
 ![CI](https://github.com/samsamtrum/agent-arena/actions/workflows/ci.yml/badge.svg)
 
 **Base Network blockchain AI agents that battle tokens, repos, DEX flow, and risk signals to find the next Base winner.**

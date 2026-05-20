@@ -463,7 +463,7 @@ function App() {
   return <main>
     <section className="hero">
       <div className="hero-copy">
-        <div className="badge"><Radio size={16}/> Base-only AI Token Intelligence</div>
+        <div className="brand-row"><img src="/avatar-192.png" alt="AgentArena avatar" className="project-avatar"/><div className="badge"><Radio size={16}/> Base-only AI Token Intelligence</div></div>
         <h1>AgentArena</h1>
         <p className="tagline">Score Base tokens with live DEX data, GitHub traction, security signals, and explainable agent consensus.</p>
         <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Battle</a><a href="#report" className="btn"><TrendingUp size={18}/> View Report</a><button onClick={exportCard} className="btn"><Download size={18}/> Export Card</button><button onClick={saveBattle} className="btn"><Save size={18}/> Save Battle</button></div>
