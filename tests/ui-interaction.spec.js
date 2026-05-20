@@ -76,6 +76,10 @@ test('multi-contract entry shows ranking table and top one effect', async ({ pag
   await expect(page.getByText(/Agent Council v2/i)).toBeVisible();
   await expect(page.getByText(/Risk Sentinel/i).first()).toBeVisible();
   await expect(page.getByText(/Evidence Agent/i).first()).toBeVisible();
+  await expect(page.getByText(/Red Team/i).first()).toBeVisible();
+  await expect(page.getByText(/Source Judge/i).first()).toBeVisible();
+  await expect(page.getByText(/Next Best Action/i).first()).toBeVisible();
+  await expect(page.getByText(/Token Thesis/i).first()).toBeVisible();
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {

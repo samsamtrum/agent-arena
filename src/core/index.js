@@ -17,6 +17,10 @@ export const agents = [
   { name: 'Whale Agent', icon: 'Coins', color: '#c084fc', focus: 'Base wallet flow and holder behavior' },
   { name: 'Risk Sentinel Agent', icon: 'ShieldAlert', color: '#f43f5e', focus: 'hard veto checks for rug, LP, owner, holder and fake-volume traps' },
   { name: 'Evidence Agent', icon: 'GitBranch', color: '#38bdf8', focus: 'source coverage, audit trail, confidence and missing evidence' },
+  { name: 'Red Team Agent', icon: 'Bot', color: '#fb7185', focus: 'adversarial challenge, attack vectors, and break conditions' },
+  { name: 'Source Judge Agent', icon: 'GitBranch', color: '#60a5fa', focus: 'cross-source conflicts and evidence arbitration' },
+  { name: 'Action Agent', icon: 'Zap', color: '#facc15', focus: 'next best verification step and expected impact' },
+  { name: 'Thesis Agent', icon: 'Brain', color: '#a78bfa', focus: 'bull case, bear case, and monitoring plan' },
   { name: 'Skeptic Agent', icon: 'Bot', color: '#94a3b8', focus: 'weak spots and fake hype detection' }
 ];
 
@@ -1298,16 +1302,16 @@ function scoreLabel(value) {
 }
 export const DEFAULT_WEIGHTS = {
   score: { builder: 26, market: 34, meme: 22, safety: 18 },
-  agents: { 'Builder Agent': 1.05, 'Trader Agent': 1.2, 'Risk Agent': 1.35, 'Meme Agent': .95, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.55, 'Evidence Agent': 1.25, 'Skeptic Agent': 1.15 },
+  agents: { 'Builder Agent': 1.05, 'Trader Agent': 1.2, 'Risk Agent': 1.35, 'Meme Agent': .95, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.55, 'Evidence Agent': 1.25, 'Red Team Agent': 1.25, 'Source Judge Agent': 1.2, 'Action Agent': 1.05, 'Thesis Agent': 1.1, 'Skeptic Agent': 1.15 },
   riskVeto: 70,
   preset: 'Balanced'
 };
 export const WEIGHT_PRESETS = {
   Balanced: DEFAULT_WEIGHTS,
-  Degen: { score: { builder: 16, market: 42, meme: 30, safety: 12 }, agents: { 'Builder Agent': .85, 'Trader Agent': 1.45, 'Risk Agent': .9, 'Meme Agent': 1.35, 'Whale Agent': 1.1, 'Risk Sentinel Agent': 1.05, 'Evidence Agent': .9, 'Skeptic Agent': .8 }, riskVeto: 82, preset: 'Degen' },
-  Safe: { score: { builder: 22, market: 24, meme: 12, safety: 42 }, agents: { 'Builder Agent': 1, 'Trader Agent': .9, 'Risk Agent': 1.7, 'Meme Agent': .65, 'Whale Agent': 1.15, 'Risk Sentinel Agent': 1.9, 'Evidence Agent': 1.45, 'Skeptic Agent': 1.5 }, riskVeto: 62, preset: 'Safe' },
-  Builder: { score: { builder: 44, market: 22, meme: 12, safety: 22 }, agents: { 'Builder Agent': 1.65, 'Trader Agent': .95, 'Risk Agent': 1.05, 'Meme Agent': .65, 'Whale Agent': .85, 'Risk Sentinel Agent': 1.25, 'Evidence Agent': 1.35, 'Skeptic Agent': 1.1 }, riskVeto: 70, preset: 'Builder' },
-  'Meme Hunter': { score: { builder: 14, market: 30, meme: 40, safety: 16 }, agents: { 'Builder Agent': .75, 'Trader Agent': 1.15, 'Risk Agent': 1, 'Meme Agent': 1.7, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.15, 'Evidence Agent': .95, 'Skeptic Agent': .85 }, riskVeto: 78, preset: 'Meme Hunter' }
+  Degen: { score: { builder: 16, market: 42, meme: 30, safety: 12 }, agents: { 'Builder Agent': .85, 'Trader Agent': 1.45, 'Risk Agent': .9, 'Meme Agent': 1.35, 'Whale Agent': 1.1, 'Risk Sentinel Agent': 1.05, 'Evidence Agent': .9, 'Red Team Agent': .95, 'Source Judge Agent': .9, 'Action Agent': .85, 'Thesis Agent': 1.05, 'Skeptic Agent': .8 }, riskVeto: 82, preset: 'Degen' },
+  Safe: { score: { builder: 22, market: 24, meme: 12, safety: 42 }, agents: { 'Builder Agent': 1, 'Trader Agent': .9, 'Risk Agent': 1.7, 'Meme Agent': .65, 'Whale Agent': 1.15, 'Risk Sentinel Agent': 1.9, 'Evidence Agent': 1.45, 'Red Team Agent': 1.55, 'Source Judge Agent': 1.45, 'Action Agent': 1.15, 'Thesis Agent': 1.05, 'Skeptic Agent': 1.5 }, riskVeto: 62, preset: 'Safe' },
+  Builder: { score: { builder: 44, market: 22, meme: 12, safety: 22 }, agents: { 'Builder Agent': 1.65, 'Trader Agent': .95, 'Risk Agent': 1.05, 'Meme Agent': .65, 'Whale Agent': .85, 'Risk Sentinel Agent': 1.25, 'Evidence Agent': 1.35, 'Red Team Agent': 1.15, 'Source Judge Agent': 1.25, 'Action Agent': 1.2, 'Thesis Agent': 1.45, 'Skeptic Agent': 1.1 }, riskVeto: 70, preset: 'Builder' },
+  'Meme Hunter': { score: { builder: 14, market: 30, meme: 40, safety: 16 }, agents: { 'Builder Agent': .75, 'Trader Agent': 1.15, 'Risk Agent': 1, 'Meme Agent': 1.7, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.15, 'Evidence Agent': .95, 'Red Team Agent': 1.05, 'Source Judge Agent': .95, 'Action Agent': .95, 'Thesis Agent': 1.25, 'Skeptic Agent': .85 }, riskVeto: 78, preset: 'Meme Hunter' }
 };
 export function readWeights() { try { return JSON.parse(localStorage.getItem(WEIGHTS_KEY) || 'null') || DEFAULT_WEIGHTS; } catch { return DEFAULT_WEIGHTS; } }
 export function normalizeScoreWeights(w) { const total = Object.values(w.score).reduce((a,b)=>a+num(b),0) || 100; return Object.fromEntries(Object.entries(w.score).map(([k,v])=>[k,num(v)/total])); }
@@ -1353,6 +1357,85 @@ export function evidenceAudit(p) {
   return { score: Math.round(score), reliability: reliability.score, badge: reliability.badge, completeness: quality.completeness, coverage: graph.coverage, supported, weak: weak.length, missingCritical: readiness.missingCritical, claims: claims.slice(0, 12), strongest: graph.strongest.slice(0, 5), risks: graph.risks.slice(0, 6), summary: `${supported}/${claims.length} evidence claims supported · ${quality.completeness}% complete · ${reliability.badge}` };
 }
 
+export function redTeamChallenge(p, runner) {
+  const sentinel = riskSentinel(p);
+  const conflicts = contradictionDetector(p);
+  const rug = rugPatternDetector(p);
+  const intel = tokenIntelligence(p);
+  const quality = dataQuality(p);
+  const runnerScore = runner?.scores ? Math.round(runner.scores.adjustedFinal ?? runner.scores.final) : null;
+  const winnerScore = Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).final);
+  const attacks = [];
+  const add = (severity, attackVector, breakCondition, confidence, recommendedCheck) => attacks.push({ severity, attackVector, breakCondition, confidence: Math.round(clamp(confidence)), recommendedCheck });
+  if (sentinel.hardVeto) add('critical', 'Hard veto hidden under strong score', sentinel.severe[0]?.detail || sentinel.summary, 90, 'Resolve sentinel veto before trusting Top 1');
+  if (conflicts.severity >= 2) add(conflicts.severity >= 4 ? 'critical' : 'high', 'Signal contradiction', conflicts.items.find(x => x.level !== 'good')?.detail || conflicts.label, 72 + conflicts.severity * 4, 'Open cross-source judge and inspect conflicting sources');
+  if (rug.level === 'High' || rug.level === 'Critical') add('critical', 'Pre-rug pattern proximity', rug.summary, rug.level === 'Critical' ? 94 : 82, 'Check LP, owner flow, tax, and holder exits immediately');
+  if (runnerScore !== null && winnerScore - runnerScore <= 6) add('medium', 'Top 1 margin is thin', `Runner-up is within ${winnerScore - runnerScore} adjusted points.`, 66, 'Compare weakest category against runner-up before declaring winner');
+  if (quality.completeness < 70) add('high', 'Incomplete evidence can overstate rank', `Completeness is ${quality.completeness}%.`, 74, 'Run missing high-impact scans first');
+  if (!attacks.length) add('low', 'No obvious break condition', 'Current winner has no major red-team blocker from available evidence.', 48, 'Monitor liquidity, holder flow, and source freshness');
+  const severityRank = { critical: 3, high: 2, medium: 1, low: 0 };
+  const worst = attacks.slice().sort((a,b) => (severityRank[b.severity] - severityRank[a.severity]) || b.confidence - a.confidence)[0];
+  const score = clamp(100 - attacks.reduce((sum, a) => sum + ({ critical:24, high:16, medium:9, low:3 }[a.severity] || 0), 0));
+  return { score: Math.round(score), level: worst.severity, attacks: attacks.slice(0, 5), summary: `${worst.attackVector}: ${worst.breakCondition}`, breakCondition: worst.breakCondition, recommendedCheck: worst.recommendedCheck, confidence: worst.confidence };
+}
+
+export function crossSourceJudge(p) {
+  const conflicts = contradictionDetector(p);
+  const market = marketCrossCheck(p);
+  const graph = evidenceGraph(p);
+  const audit = evidenceAudit(p);
+  const sentinel = riskSentinel(p);
+  const conflictsOut = [];
+  const add = (severity, label, detail, penalty, decision) => conflictsOut.push({ severity, label, detail, penalty, decision });
+  conflicts.items.filter(x => x.level !== 'good').forEach(x => add(x.level === 'danger' ? 'high' : 'medium', x.label, x.detail, x.level === 'danger' ? 14 : 8, 'penalize'));
+  if (market.available && market.score < 55) add('medium', 'Market source disagreement', market.flags.find(f => f.level !== 'good')?.detail || 'DexScreener and GeckoTerminal are not aligned.', 9, 'verify-market');
+  if (audit.missingCritical.length >= 3) add('high', 'Critical evidence gaps', `${audit.missingCritical.length} critical scans are missing.`, 14, 'block-confidence');
+  if (sentinel.hardVeto) add('critical', 'Sentinel hard veto', sentinel.summary, 22, 'block-bullish');
+  const groupRisk = graph.groups.filter(g => g.level === 'danger').map(g => g.category);
+  if (groupRisk.length) add('medium', 'Danger evidence group', `${groupRisk.join(', ')} evidence group is danger-level.`, 8, 'verify-source');
+  const penalty = Math.round(clamp(conflictsOut.reduce((s, c) => s + c.penalty, 0), 0, 70));
+  const score = clamp(100 - penalty);
+  const verdict = conflictsOut.some(c => c.severity === 'critical') ? 'Blocked' : conflictsOut.some(c => c.severity === 'high') ? 'Needs Review' : conflictsOut.length ? 'Watch Conflict' : 'Aligned';
+  return { score: Math.round(score), verdict, penalty, conflicts: conflictsOut.slice(0, 7), summary: conflictsOut[0] ? `${conflictsOut[0].label}: ${conflictsOut[0].detail}` : 'Sources are aligned enough for the current verdict.' };
+}
+
+export function nextBestAction(p, ranked = []) {
+  const tasks = agentTasks([p], [p], { [projectId(p)]: { status: 'New', level: 'neutral', summary: 'No previous snapshot yet.' } });
+  const sentinel = riskSentinel(p);
+  const audit = evidenceAudit(p);
+  const judge = crossSourceJudge(p);
+  let chosen = tasks.find(t => t.priority === 'High') || tasks[0];
+  if (sentinel.hardVeto) chosen = { agent: 'Risk Sentinel Agent', priority: 'High', title: 'Resolve hard veto before ranking up', reason: sentinel.summary, action: 'sentinel' };
+  else if (judge.verdict === 'Blocked' || judge.verdict === 'Needs Review') chosen = { agent: 'Source Judge Agent', priority: 'High', title: 'Resolve source conflict', reason: judge.summary, action: 'cross-source' };
+  else if (audit.missingCritical.length) {
+    const gap = audit.missingCritical[0];
+    const gapName = typeof gap === 'string' ? gap : (gap.name || gap.id || gap.label || 'critical evidence scan');
+    chosen = { agent: 'Evidence Agent', priority: 'High', title: `Run ${gapName}`, reason: 'This missing scan has the highest confidence impact.', action: gapName.toLowerCase().replace(/[^a-z0-9]+/g, '-') };
+  }
+  const expectedImpact = chosen?.action === 'sentinel' ? 'Can remove a hard block from the winner verdict.' : chosen?.action === 'cross-source' ? 'Can reduce conflict penalty and improve confidence.' : chosen?.priority === 'High' ? 'Can materially change confidence or adjusted rank.' : 'Improves report completeness and monitoring quality.';
+  return { nextScan: chosen?.title || 'Save current snapshot', agent: chosen?.agent || 'Consensus Agent', priority: chosen?.priority || 'Low', why: chosen?.reason || 'Creates baseline for future re-scan learning.', expectedImpact, action: chosen?.action || null };
+}
+
+export function tokenThesis(p, runner) {
+  const intel = tokenIntelligence(p);
+  const evidence = evidenceSummary(p);
+  const red = redTeamChallenge(p, runner);
+  const judge = crossSourceJudge(p);
+  const action = nextBestAction(p);
+  const label = p.symbol ? `$${p.symbol}` : p.name || 'Token';
+  const bull = evidence.positives?.[0] || `${label} has the strongest adjusted rank in the current battle.`;
+  const bear = evidence.risks?.[0] || red.summary || 'The thesis weakens if liquidity, holders, or source coverage deteriorate.';
+  return {
+    bullCase: bull,
+    bearCase: bear,
+    changeMind: red.breakCondition || 'A new hard veto, market/source conflict, or holder distribution shift would change the verdict.',
+    monitoringPlan: [`${action.nextScan}: ${action.why}`, 'Re-scan liquidity and holder flow after meaningful volume changes.', 'Compare runner-up if adjusted score gap narrows below 6 points.'],
+    thesis: `${label} is ${intel.label} with ${intel.confidence}% confidence. Bull case: ${bull} Bear case: ${bear} Cross-source judge: ${judge.verdict}.`,
+    verdict: intel.label,
+    confidence: intel.confidence
+  };
+}
+
 function voteFromScore(score, bearish = false) {
   if (bearish) return score >= 68 ? 'Bearish' : score >= 45 ? 'Neutral' : 'Bullish';
   return score >= 68 ? 'Bullish' : score >= 48 ? 'Neutral' : 'Bearish';
@@ -1371,6 +1454,10 @@ export function agentKernel(p, runner) {
   const sentinel = riskSentinel({ ...p, scores: s });
   const audit = evidenceAudit({ ...p, scores: s });
   const weights = globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS;
+  const redTeam = redTeamChallenge({ ...p, scores: s }, runner);
+  const judge = crossSourceJudge({ ...p, scores: s });
+  const nextAction = nextBestAction({ ...p, scores: s });
+  const thesis = tokenThesis({ ...p, scores: s }, runner);
   const kernels = [
     {
       name: 'Builder Agent', weight: weights.agents['Builder Agent'], score: s.builder, vote: voteFromScore(s.builder), confidence: clamp((s.confidence*.45)+(s.builder*.55)),
@@ -1415,9 +1502,33 @@ export function agentKernel(p, runner) {
       changeMind: 'Run missing scans, resolve weak evidence nodes, and cross-check market/security/holder sources to raise audit confidence.'
     },
     {
-      name: 'Skeptic Agent', weight: weights.agents['Skeptic Agent'], score: clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0)), vote: voteFromScore(clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0))), confidence: clamp((100-s[weak])*.55 + s.confidence*.45 + (sentinel.hardVeto ? 12 : 0)),
+      name: 'Red Team Agent', weight: weights.agents['Red Team Agent'], score: redTeam.score, vote: redTeam.level === 'critical' || redTeam.level === 'high' ? 'Bearish' : redTeam.level === 'medium' ? 'Neutral' : 'Bullish', confidence: redTeam.confidence,
+      bullish: [redTeam.level === 'low' && 'No obvious break condition found'].filter(Boolean),
+      bearish: redTeam.attacks.map(a => `${a.attackVector}: ${a.breakCondition}`),
+      changeMind: redTeam.recommendedCheck
+    },
+    {
+      name: 'Source Judge Agent', weight: weights.agents['Source Judge Agent'], score: judge.score, vote: judge.verdict === 'Blocked' || judge.verdict === 'Needs Review' ? 'Bearish' : judge.verdict === 'Watch Conflict' ? 'Neutral' : 'Bullish', confidence: clamp(60 + judge.penalty),
+      bullish: [judge.verdict === 'Aligned' && 'Cross-source signals are aligned enough'].filter(Boolean),
+      bearish: judge.conflicts.map(c => `${c.label}: ${c.detail}`),
+      changeMind: 'Resolve source conflicts or rerun market/security/holder scans to lower conflict penalty.'
+    },
+    {
+      name: 'Action Agent', weight: weights.agents['Action Agent'], score: clamp(100 - (nextAction.priority === 'High' ? 26 : nextAction.priority === 'Medium' ? 14 : 5)), vote: nextAction.priority === 'High' ? 'Neutral' : 'Bullish', confidence: 72,
+      bullish: [`Next best action is clear: ${nextAction.nextScan}`],
+      bearish: [nextAction.priority === 'High' && nextAction.why].filter(Boolean),
+      changeMind: nextAction.expectedImpact
+    },
+    {
+      name: 'Thesis Agent', weight: weights.agents['Thesis Agent'], score: clamp((s.adjustedFinal ?? s.final) * .55 + audit.score * .25 + judge.score * .2), vote: voteFromScore(clamp((s.adjustedFinal ?? s.final) * .55 + audit.score * .25 + judge.score * .2)), confidence: thesis.confidence,
+      bullish: [thesis.bullCase],
+      bearish: [thesis.bearCase, thesis.changeMind].filter(Boolean),
+      changeMind: thesis.monitoringPlan[0]
+    },
+    {
+      name: 'Skeptic Agent', weight: weights.agents['Skeptic Agent'], score: clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0) - (redTeam.level === 'critical' ? 10 : 0)), vote: voteFromScore(clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0) - (redTeam.level === 'critical' ? 10 : 0))), confidence: clamp((100-s[weak])*.55 + s.confidence*.45 + (sentinel.hardVeto ? 12 : 0)),
       bullish: [quality.completeness >= 80 && 'Data coverage is strong', s.final >= 75 && !sentinel.hardVeto && 'Overall score is hard to ignore'].filter(Boolean),
-      bearish: [`Weakest area is ${weak}`, quality.completeness < 70 && 'Data quality is incomplete', sentinel.hardVeto && `Sentinel veto: ${sentinel.summary}`, trend.level === 'danger' && trend.summary, runner && runner.scores[weak] > s[weak] && 'Runner-up threatens the weakest area'].filter(Boolean),
+      bearish: [`Weakest area is ${weak}`, quality.completeness < 70 && 'Data quality is incomplete', sentinel.hardVeto && `Sentinel veto: ${sentinel.summary}`, redTeam.level === 'critical' && `Red team: ${redTeam.summary}`, trend.level === 'danger' && trend.summary, runner && runner.scores[weak] > s[weak] && 'Runner-up threatens the weakest area'].filter(Boolean),
       changeMind: 'More complete data, stronger weakest category, no sentinel veto, and fewer risk flags would reduce skepticism.'
     }
   ];
@@ -1620,11 +1731,11 @@ export function evidenceSummary(p) {
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
-  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p) }));
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p), redTeam: redTeamChallenge(p, ranked[i + 1]), sourceJudge: crossSourceJudge(p), nextAction: nextBestAction(p, ranked), thesis: tokenThesis(p, ranked[i + 1]) }));
   return {
     version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner) },
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner), redTeam: redTeamChallenge(winner, ranked[1]), sourceJudge: crossSourceJudge(winner), nextAction: nextBestAction(winner, ranked), thesis: tokenThesis(winner, ranked[1]) },
     ranking,
     agentKernels: kernels,
     consensus,
@@ -1775,6 +1886,14 @@ export function reportMarkdown(data) {
   (data.winner.sentinel?.severe?.length ? data.winner.sentinel.severe : [{ label: 'No hard veto', detail: data.winner.sentinel?.summary || 'No hard veto detected.' }]).slice(0, 4).forEach(x => lines.push(`- Sentinel: ${x.label} — ${x.detail}`));
   lines.push(`Evidence audit: **${data.winner.evidenceAudit?.score || 0}/100** · ${data.winner.evidenceAudit?.summary || 'Evidence not audited.'}`);
   (data.winner.evidenceAudit?.risks || []).slice(0, 4).forEach(x => lines.push(`- Weak evidence: ${x.claim} — ${x.value} (${x.source})`));
+  lines.push(``);
+  lines.push(`## Red Team / Source Judge / Thesis`);
+  lines.push(`Red Team: **${data.winner.redTeam?.level || 'low'}** — ${data.winner.redTeam?.summary || 'No challenge generated.'}`);
+  (data.winner.redTeam?.attacks || []).slice(0, 4).forEach(a => lines.push(`- ${a.severity}: ${a.attackVector} — ${a.breakCondition} · check: ${a.recommendedCheck}`));
+  lines.push(`Source Judge: **${data.winner.sourceJudge?.verdict || 'Aligned'}** · penalty **-${data.winner.sourceJudge?.penalty || 0}** — ${data.winner.sourceJudge?.summary || 'Sources aligned.'}`);
+  lines.push(`Next best action: **${data.winner.nextAction?.nextScan || 'Save current snapshot'}** — ${data.winner.nextAction?.why || 'Create baseline.'} Impact: ${data.winner.nextAction?.expectedImpact || 'Improves monitoring.'}`);
+  lines.push(`Thesis: ${data.winner.thesis?.thesis || 'No thesis generated.'}`);
+  (data.winner.thesis?.monitoringPlan || []).slice(0, 3).forEach(x => lines.push(`- Monitor: ${x}`));
   lines.push(``);
   lines.push(`## Evidence Graph — Winner`);
   const winnerGraph = data.ranking[0]?.evidenceGraph;

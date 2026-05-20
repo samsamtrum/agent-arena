@@ -113,8 +113,27 @@ test('consensus activates risk veto when Risk Agent is bearish with high confide
   assert.ok(consensus.riskVeto);
   assert.ok(kernels.some(k => k.name === 'Risk Sentinel Agent'));
   assert.ok(kernels.some(k => k.name === 'Evidence Agent'));
+  assert.ok(kernels.some(k => k.name === 'Red Team Agent'));
+  assert.ok(kernels.some(k => k.name === 'Source Judge Agent'));
+  assert.ok(kernels.some(k => k.name === 'Action Agent'));
+  assert.ok(kernels.some(k => k.name === 'Thesis Agent'));
 });
 
+
+test('red team and source judge expose attack vectors and next actions', () => {
+  const risky = { ...weakProject, scores: core.scoreProject(weakProject) };
+  const red = core.redTeamChallenge(risky, { ...baseProject, scores: core.scoreProject(baseProject) });
+  const judge = core.crossSourceJudge(risky);
+  const action = core.nextBestAction(risky, [risky]);
+  const thesis = core.tokenThesis(risky, { ...baseProject, scores: core.scoreProject(baseProject) });
+  assert.ok(red.attacks.length);
+  assert.ok(['critical', 'high', 'medium', 'low'].includes(red.level));
+  assert.ok(judge.conflicts.length);
+  assert.ok(['Blocked', 'Needs Review', 'Watch Conflict', 'Aligned'].includes(judge.verdict));
+  assert.ok(action.nextScan);
+  assert.ok(thesis.bullCase);
+  assert.ok(thesis.bearCase);
+});
 
 test('evidence veto activates when critical evidence is almost completely missing', () => {
   const missing = { ...core.emptyProject(), name: 'Missing Evidence', symbol: 'MISS', contract: '', liquidity: 0, volume: 0, marketCap: 0, risk: 50, mentions: 0 };
@@ -365,10 +384,18 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Agent Sentinel \/ Evidence Audit/);
   assert.match(md, /Sentinel:/);
   assert.match(md, /Evidence audit:/);
+  assert.match(md, /Red Team \/ Source Judge \/ Thesis/);
+  assert.match(md, /Next best action:/);
+  assert.match(md, /Thesis:/);
   assert.match(md, /Evidence Trail/);
   assert.ok(data.winner.sentinel);
   assert.ok(data.winner.evidenceAudit);
   assert.ok(data.agentKernels.some(k => k.name === 'Risk Sentinel Agent'));
   assert.ok(data.agentKernels.some(k => k.name === 'Evidence Agent'));
+  assert.ok(data.agentKernels.some(k => k.name === 'Red Team Agent'));
+  assert.ok(data.winner.redTeam);
+  assert.ok(data.winner.sourceJudge);
+  assert.ok(data.winner.nextAction);
+  assert.ok(data.winner.thesis);
   assert.doesNotThrow(() => JSON.stringify(data));
 });
