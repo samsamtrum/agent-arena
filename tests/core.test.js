@@ -116,6 +116,17 @@ test('consensus activates risk veto when Risk Agent is bearish with high confide
 });
 
 
+test('evidence veto activates when critical evidence is almost completely missing', () => {
+  const missing = { ...core.emptyProject(), name: 'Missing Evidence', symbol: 'MISS', contract: '', liquidity: 0, volume: 0, marketCap: 0, risk: 50, mentions: 0 };
+  missing.scores = core.scoreProject(missing);
+  const kernels = core.agentKernel(missing);
+  const consensus = core.consensusFromKernels(kernels);
+  const evidence = kernels.find(k => k.name === 'Evidence Agent');
+  assert.equal(evidence.vote, 'Bearish');
+  assert.ok(evidence.score < 25);
+  assert.ok(consensus.evidenceVeto);
+});
+
 test('market cross-check rewards aligned second-source data and flags mismatches', () => {
   const aligned = core.marketCrossCheck(baseProject);
   const mismatch = core.marketCrossCheck({ ...baseProject, gecko: { volume: 20_000, liquidity: 30_000, marketCap: 300_000, pairAddress: '0x4444444444444444444444444444444444444444' } });

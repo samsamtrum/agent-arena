@@ -1431,7 +1431,7 @@ export function consensusFromKernels(kernels) {
   const spread = sorted[0][1] - sorted[1][1];
   const riskVetoLevel = (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).riskVeto;
   const riskVeto = kernels.some(k => (k.name === 'Risk Agent' || k.name === 'Risk Sentinel Agent') && k.vote === 'Bearish' && k.confidence >= riskVetoLevel);
-  const evidenceVeto = kernels.some(k => k.name === 'Evidence Agent' && k.vote === 'Bearish' && k.confidence >= 65);
+  const evidenceVeto = kernels.some(k => k.name === 'Evidence Agent' && k.vote === 'Bearish' && (k.confidence >= 65 || k.score < 25));
   const disagreement = spread < .25 ? 'High' : spread < .75 ? 'Medium' : 'Low';
   const label = (riskVeto || evidenceVeto) && top === 'Bullish' ? 'Speculative Bullish' : top;
   return { totals, label, disagreement, riskVeto, evidenceVeto, spread };
