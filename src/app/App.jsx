@@ -492,7 +492,7 @@ function App() {
     <section className="mission-flow" aria-label="Analysis flow"><div><b>01</b><span>Paste Base contract</span></div><div><b>02</b><span>Run evidence checks</span></div><div><b>03</b><span>Read verdict</span></div><div><b>04</b><span>Export report</span></div></section>
 
     <section className="grid" id="arena">
-      <div className="panel controls command-panel">
+      <div className="panel controls command-panel analysis-console">
         <div className="panel-head"><div><h2>Battle Setup</h2><p className="panel-kicker">Analyze one Base token first. Paste a contract, run core checks, then export an evidence-backed verdict.</p></div><button onClick={addProject}>+ Add</button></div>
         <label className="visible-field">Battle title<span className="field-hint">Name this analysis session</span><input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
         {projects.map((p,i)=><details className="project-form" key={i} open>
