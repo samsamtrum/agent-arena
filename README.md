@@ -1,6 +1,6 @@
 # AgentArena
 
-![CI](https://github.com/bentam/agent-arena/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/samsamtrum/agent-arena/actions/workflows/ci.yml/badge.svg)
 
 **Base-only AI agents that battle tokens, repos, DEX flow, and risk signals to find the next Base winner.**
 
@@ -198,6 +198,11 @@ Publish directory:
 ```bash
 dist
 ```
+
+## Contact & Donate
+
+- Email: davidnguyenp91@gmail.com
+- Donate EVM: `0xe07d7094266a1af9a69b7d2dca480d6267d9e661`
 
 ## Notes
 
