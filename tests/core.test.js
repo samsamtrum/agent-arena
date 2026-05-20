@@ -205,6 +205,17 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('verdict trace explains score, caps, gates, and contributions', () => {
+  const risky = { ...baseProject, security: null, holders: null, gecko: null, liquidity: 9000, volume: 35000 };
+  risky.scores = core.scoreProject(risky);
+  const trace = core.verdictTrace(risky);
+  assert.ok(trace.steps.some(s => s.label === 'Raw weighted score'));
+  assert.ok(trace.steps.some(s => s.label === 'Confidence calibration'));
+  assert.ok(trace.positives.length >= 2);
+  assert.ok(trace.negatives.some(n => n.veto || /Missing|liquidity|cap|gate/i.test(n.label + n.detail)));
+  assert.ok(trace.why.length >= 1);
+});
+
 test('scan readiness prioritizes missing critical evidence', () => {
   const partial = { ...baseProject, security: null, holders: null, gecko: null, transferFlow: null };
   partial.scores = core.scoreProject(partial);
@@ -295,6 +306,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Verdict Trace \/ Why This Result/);
+  assert.match(md, /Pull up/);
+  assert.match(md, /Pull down/);
   assert.match(md, /Scan Readiness \/ Evidence Gaps/);
   assert.match(md, /Next best scan/);
   assert.match(md, /Token Identity \/ Pair Integrity/);

@@ -1061,6 +1061,48 @@ export function riskRulePack(p) {
   return { rules, penalty, gate, severe: rules.filter(r => r.level === 'danger').length };
 }
 
+export function verdictTrace(p) {
+  const scored = p.scores || scoreProject(p);
+  const rules = riskRulePack(p);
+  const calibration = confidenceCalibration({ ...p, scores: scored }, scored.confidence || 0);
+  const readiness = scanReadiness({ ...p, scores: scored });
+  const pair = pairIntegrity(p);
+  const rug = rugPatternDetector(p);
+  const rawFinal = Math.round(scored.final ?? 0);
+  const adjusted = Math.round(scored.adjustedFinal ?? scored.final ?? 0);
+  const final = Math.round(clamp(adjusted - rules.penalty * .35, 0, 100));
+  const contributions = [];
+  const add = (type, label, detail, value, veto = false) => contributions.push({ type, label, detail, value: Math.round(value), veto });
+  add('positive', 'Builder score', `Builder component ${Math.round(scored.builder || 0)}/100 contributes 27%.`, (scored.builder || 0) * .27);
+  add('positive', 'Market score', `Market component ${Math.round(scored.market || 0)}/100 contributes 35%.`, (scored.market || 0) * .35);
+  add('positive', 'Narrative/social score', `Narrative component ${Math.round(scored.meme || 0)}/100 contributes 20%.`, (scored.meme || 0) * .2);
+  add('positive', 'Safety score', `Safety component ${Math.round(scored.safety || 0)}/100 contributes 18%.`, (scored.safety || 0) * .18);
+  if ((scored.haircut || 0) > 0) add('negative', 'Reliability haircut', `Source reliability/conflicts subtract ${Math.round(scored.haircut)} points.`, -scored.haircut);
+  rules.rules.slice(0, 6).forEach(r => add(r.level === 'danger' ? 'veto' : 'negative', r.label, r.detail, -r.penalty, Boolean(r.gate),));
+  calibration.caps.slice(0, 4).forEach(c => add('cap', 'Confidence cap', c.reason, c.cap - calibration.raw, true));
+  if (pair.score < 55) add('veto', 'Pair integrity weakness', pair.flags.find(f=>f.level !== 'good')?.detail || 'Pair identity needs review.', pair.score - 100, true);
+  if (rug.level === 'High' || rug.level === 'Critical') add('veto', `${rug.level} pre-rug proximity`, rug.flags[0]?.detail || rug.summary, -rug.score, true);
+  if (readiness.missingCritical.length) add('negative', 'Critical evidence gaps', `${readiness.missingCritical.length} critical scan(s) still missing or partial.`, -readiness.missingCritical.reduce((s,g)=>s+g.confidenceUnlock,0), true);
+  const positives = contributions.filter(c=>c.type==='positive').sort((a,b)=>b.value-a.value).slice(0,5);
+  const negatives = contributions.filter(c=>c.type!=='positive').sort((a,b)=>a.value-b.value).slice(0,6);
+  const steps = [
+    { label: 'Raw weighted score', value: rawFinal, detail: 'Builder, market, narrative, and safety components combined.' },
+    { label: 'Reliability-adjusted score', value: adjusted, detail: (scored.haircut || 0) ? `Applied ${Math.round(scored.haircut)} point source reliability haircut.` : 'No reliability haircut applied.' },
+    { label: 'Decision gate penalty', value: final, detail: rules.penalty ? `Applied ${Math.round(rules.penalty)} gate penalty points before final verdict.` : 'No major gate penalty applied.' },
+    { label: 'Confidence calibration', value: calibration.calibrated, detail: `${calibration.tier}; cap ${calibration.cap}%, evidence score ${calibration.evidenceScore}/100.` },
+    { label: 'Scan readiness', value: readiness.score, detail: readiness.summary },
+    { label: 'Final gate', value: rules.gate, detail: rules.rules.find(r=>r.gate===rules.gate)?.label || 'No stricter gate override.' }
+  ];
+  const why = [];
+  if (rules.gate !== 'Safe to Watch') why.push(`Final verdict is constrained by gate **${rules.gate}**.`);
+  if (calibration.cap < 100) why.push(`Confidence is capped because ${calibration.caps[0]?.reason || 'core evidence is incomplete'}`);
+  if (readiness.missingCritical.length) why.push(`Missing/partial critical scans: ${readiness.missingCritical.slice(0,3).map(g=>g.name).join(', ')}.`);
+  if (pair.score < 55) why.push(`Pair integrity is weak: ${pair.flags.find(f=>f.level !== 'good')?.label || 'identity needs review'}.`);
+  if (rug.level === 'High' || rug.level === 'Critical') why.push(`${rug.level} adversarial/rug proximity keeps the verdict cautious.`);
+  if (!why.length) why.push('Verdict is driven mainly by score, source reliability, and calibrated confidence; no hard veto is active.');
+  return { rawFinal, adjusted, final, gate: rules.gate, confidence: calibration.calibrated, positives, negatives, steps, why };
+}
+
 export function tokenIntelligence(p) {
   const scored = p.scores || scoreProject(p);
   const quality = dataQuality(p);
@@ -1098,7 +1140,8 @@ export function tokenIntelligence(p) {
   else label = 'Avoid';
   if (gateRank[rules.gate] > gateRank[label]) label = rules.gate;
   const readiness = scanReadiness({ ...p, scores: scored });
-  return { label, score: final, rawScore: rawFinal, confidence, calibration, readiness, evidenceTier: calibration.tier, evidenceScore: calibration.evidenceScore, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
+  const trace = verdictTrace({ ...p, scores: scored });
+  return { label, score: final, rawScore: rawFinal, confidence, calibration, readiness, trace, evidenceTier: calibration.tier, evidenceScore: calibration.evidenceScore, reliability: reliability.score, completeness: quality.completeness, gate: rules.gate, penalty: rules.penalty, penaltyBreakdown: rules.rules.slice(0, 8), reasons: reasons.slice(0, 3), missing: quality.missing.slice(0, 4), conflicts: conflicts.items?.slice?.(0, 3) || [] };
 }
 
 export function readSavedBattles() {
@@ -1454,7 +1497,7 @@ export function evidenceSummary(p) {
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
   const calibration = confidenceCalibration({ ...p, scores });
-  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), trace: verdictTrace(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1501,6 +1544,16 @@ export function reportMarkdown(data) {
   lines.push(`## Decision Gate / Penalty Breakdown`);
   lines.push(`Gate: **${intel?.gate || 'Safe to Watch'}** · Penalty: **-${Math.round(intel?.penalty || 0)}** · Raw score: **${intel?.rawScore ?? data.winner.final}/100**`);
   (summary?.penalties?.length ? summary.penalties : ['No major gate penalty applied.']).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Verdict Trace / Why This Result`);
+  const trace = intel?.trace || summary?.trace;
+  if (trace) {
+    trace.why.slice(0, 5).forEach(x => lines.push(`- Why: ${x}`));
+    trace.steps.forEach(s => lines.push(`- Step: **${s.label}** → ${s.value} — ${s.detail}`));
+    trace.positives.slice(0, 4).forEach(c => lines.push(`- Pull up: ${c.label} +${c.value} — ${c.detail}`));
+    const traceNegatives = trace.negatives.length ? trace.negatives : [{ label: 'No major downward factor', value: 0, detail: 'No gate, cap, reliability haircut, pair weakness, or critical missing evidence is active.', veto: false }];
+    traceNegatives.slice(0, 5).forEach(c => lines.push(`- Pull down${c.veto ? ' / veto' : ''}: ${c.label} ${c.value} — ${c.detail}`));
+  } else lines.push(`- Verdict trace unavailable.`);
   lines.push(``);
   lines.push(`## Scan Readiness / Evidence Gaps`);
   const readiness = intel?.readiness || summary?.readiness;
