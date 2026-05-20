@@ -82,8 +82,9 @@ test('downloaded report files are valid and do not contain broken placeholders',
   for await (const chunk of md) mdChunks.push(chunk);
   const mdText = Buffer.concat(mdChunks).toString('utf8');
   expect(mdDownload.suggestedFilename()).toMatch(/agentarena-.*-report\.md$/);
-  expect(mdText).toContain('# AgentArena Battle Report');
-  expect(mdText).toContain('## Source Reliability');
+  expect(mdText).toContain('# AgentArena Token Report');
+  expect(mdText).toContain('## Verdict');
+  expect(mdText).toContain('## Evidence Summary');
   expect(mdText).toContain('## Next Agent Tasks');
   expect(mdText).not.toMatch(/undefined|NaN|\[object Object\]/);
 

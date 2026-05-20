@@ -204,8 +204,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   const scenarioResult = core.scenarioAnalysis(winner, ranked[1], { volumeMultiplier: 1, liquidityMultiplier: 1, mentionsMultiplier: 1, priceMoveDelta: 0, riskDelta: 0, lpStatus: 'same', socialBoost: false });
   const data = core.buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights: core.DEFAULT_WEIGHTS });
   const md = core.reportMarkdown(data);
-  assert.match(md, /AgentArena Battle Report/);
-  assert.match(md, /Winner/);
+  assert.match(md, /AgentArena Token Report/);
+  assert.match(md, /Verdict/);
+  assert.match(md, /Evidence Summary/);
   assert.match(md, /Evidence Trail/);
   assert.doesNotThrow(() => JSON.stringify(data));
 });

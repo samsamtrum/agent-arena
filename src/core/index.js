@@ -1102,11 +1102,36 @@ export function scenarioAnalysis(winner, runner, scenario) {
   const changes = simulatedKernels.map((k, i) => ({ agent: k.name, from: currentKernels[i].vote, to: k.vote, scoreDelta: k.score - currentKernels[i].score })).filter(x => x.from !== x.to || Math.abs(x.scoreDelta) >= 5);
   return { simulated, currentKernels, simulatedKernels, currentConsensus, simulatedConsensus, changes };
 }
+export function evidenceSummary(p) {
+  const scores = p.scores || scoreProject(p);
+  const intelligence = tokenIntelligence({ ...p, scores });
+  const checks = [
+    ['Market', marketCrossCheck(p).available ? marketCrossCheck(p).confidence : (num(p.price) || num(p.liquidity) || num(p.volume) ? 'Partial' : 'Missing'), marketCrossCheck(p).flags?.[0]?.label || (num(p.liquidity) ? `${money(p.liquidity)} liquidity` : 'Market data missing')],
+    ['Security', securityIntel(p).available ? (securityIntel(p).score >= 70 ? 'Clean' : securityIntel(p).score >= 45 ? 'Warning' : 'Danger') : 'Missing', securityIntel(p).flags?.[0]?.label || 'Security scan missing'],
+    ['Holders', holderIntel(p).available ? holderIntel(p).distribution.tier : 'Missing', holderIntel(p).flags?.[0]?.label || 'Holder scan missing'],
+    ['Whale Flow', whaleFlowIntel(p).available ? whaleFlowIntel(p).direction : 'Missing', whaleFlowIntel(p).flags?.[0]?.label || 'Transfer flow missing'],
+    ['Social', farcasterIntel(p).available ? farcasterIntel(p).confidence : (socialIntel(p).scan.count ? socialIntel(p).scan.sentiment : 'Missing'), farcasterIntel(p).flags?.[0]?.label || socialIntel(p).flags?.[0]?.label || 'Social evidence missing'],
+    ['Builder', parseRepo(p.repo || '') || p.repoUrl ? githubFreshness(p).badge : 'Missing', githubFreshness(p).summary || 'GitHub repo missing'],
+    ['Deployer', deployerIntel(p).available ? `${Math.round(deployerIntel(p).score)}/100` : 'Missing', deployerIntel(p).flags?.[0]?.label || 'Deployer scan missing']
+  ];
+  const positives = evidenceTrail(p).filter(e => e.level === 'good').slice(0, 3).map(e => `${e.claim}: ${e.value}`);
+  const risks = [
+    ...intelligence.reasons.filter(r => r.level !== 'good').map(r => `${r.label}: ${r.detail}`),
+    ...contradictionDetector(p).items.slice(0, 2).map(c => `${c.label}: ${c.detail}`),
+    ...getRiskIntel(p).flags.filter(f => f.level !== 'good').slice(0, 2).map(f => `${f.label}: ${f.detail}`)
+  ].filter(Boolean).slice(0, 3);
+  const missing = intelligence.missing.map(x => x.label).slice(0, 5);
+  const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
+  return { intelligence, checks, positives, risks, missing, recommendation };
+}
+
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights }) {
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) }));
   return {
+    version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label },
-    ranking: ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) })),
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner) },
+    ranking,
     agentKernels: kernels,
     consensus,
     debate,
@@ -1119,51 +1144,57 @@ export function buildReportData({ ranked, winner, kernels, consensus, debate, re
 }
 export function reportMarkdown(data) {
   const lines = [];
-  lines.push(`# AgentArena Battle Report`);
+  const label = data.winner.symbol ? `$${data.winner.symbol}` : data.winner.name;
+  const intel = data.winner.intelligence || data.ranking[0]?.intelligence;
+  const summary = data.winner.summary || data.ranking[0]?.summary;
+  lines.push(`# AgentArena Token Report`);
   lines.push(``);
   lines.push(`Generated: ${data.generatedAt}`);
   lines.push(``);
-  lines.push(`## Winner`);
-  lines.push(`**${data.winner.symbol ? `$${data.winner.symbol}` : data.winner.name}** — adjusted ${data.winner.adjustedFinal || data.winner.final}/100 (raw ${data.winner.final}/100)`);
-  lines.push(`Consensus: **${data.winner.consensus}** · Reliability: **${data.winner.reliabilityBadge || 'N/A'}**`);
+  lines.push(`## Verdict`);
+  lines.push(`**${label}** — **${intel?.label || data.winner.consensus}**`);
+  lines.push(`Score: **${intel?.score ?? data.winner.adjustedFinal}/100** · Confidence: **${intel?.confidence ?? 0}%** · Completeness: **${intel?.completeness ?? 0}%**`);
+  lines.push(`Recommendation: ${summary?.recommendation || 'Import live data and run verification scans before relying on the result.'}`);
+  lines.push(``);
+  lines.push(`## Top Risks`);
+  (summary?.risks?.length ? summary.risks : ['No major risk reason available yet.']).slice(0, 3).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Positive Signals`);
+  (summary?.positives?.length ? summary.positives : ['No strong positive evidence available yet.']).slice(0, 3).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Evidence Summary`);
+  (summary?.checks || []).forEach(([name, status, detail]) => lines.push(`- **${name}:** ${status} — ${detail}`));
+  lines.push(``);
+  lines.push(`## Missing Data / Skipped Scans`);
+  const missing = summary?.missing?.length ? summary.missing : [];
+  if (missing.length) missing.forEach(x => lines.push(`- ${x}`));
+  else lines.push(`- No major missing fields detected by the core report layer.`);
   lines.push(``);
   lines.push(`## Ranking`);
-  data.ranking.forEach(p => lines.push(`${p.rank}. ${p.symbol ? `$${p.symbol}` : p.name} — adjusted ${Math.round(p.scores.adjustedFinal ?? p.scores.final)}/100 · raw ${Math.round(p.scores.final)}/100 · Builder ${Math.round(p.scores.builder)} · Market ${Math.round(p.scores.market)} · Meme ${Math.round(p.scores.meme)} · Safety ${Math.round(p.scores.safety)} · Confidence ${Math.round(p.scores.confidence)}%`));
+  data.ranking.forEach(p => lines.push(`${p.rank}. ${p.symbol ? `$${p.symbol}` : p.name} — ${p.intelligence?.label || p.reliability.badge} · ${Math.round(p.scores.adjustedFinal ?? p.scores.final)}/100 · confidence ${Math.round(p.intelligence?.confidence ?? p.scores.confidence)}%`));
   lines.push(``);
   lines.push(`## Source Reliability`);
-  data.ranking.forEach(p => lines.push(`- ${p.symbol ? `$${p.symbol}` : p.name}: ${p.reliability.badge} · adjusted ${Math.round(p.adjusted.adjustedFinal)}/100 · raw ${Math.round(p.adjusted.rawFinal)}/100 · reliability ${p.reliability.score}%`));
+  data.ranking.forEach(p => lines.push(`- ${p.symbol ? `$${p.symbol}` : p.name}: ${p.reliability.badge} · reliability ${p.reliability.score}% · coverage ${p.sources.coverage}%`));
   lines.push(``);
-  lines.push(`## Source Coverage`);
-  data.ranking.forEach(p => lines.push(`- ${p.symbol ? `$${p.symbol}` : p.name}: ${p.sources.coverage}% coverage (${p.sources.plugins.map(x=>`${x.category}:${x.confidence}`).join(', ')})`));
+  lines.push(`## Contradiction Detector — Winner`);
+  const winnerContradictions = data.ranking[0]?.contradictions?.items || [];
+  if (winnerContradictions.length) winnerContradictions.slice(0, 5).forEach(c => lines.push(`- ${c.level.toUpperCase()}: ${c.label} — ${c.detail}`));
+  else lines.push(`- No major contradiction detected.`);
   lines.push(``);
   lines.push(`## Agent Votes`);
-  data.agentKernels.forEach(k => lines.push(`- ${k.name}: **${k.vote}** · score ${Math.round(k.score)} · confidence ${Math.round(k.confidence)}% · weight ${k.weight}x`));
-  lines.push(``);
-  lines.push(`## Debate Loop`);
-  data.debate.forEach(d => lines.push(`- **${d.round} / ${d.agent}:** ${d.text}`));
-  lines.push(``);
-  lines.push(`## Self-Review`);
-  lines.push(`Status: **${data.selfReview.label}**`);
-  lines.push(data.selfReview.summary);
-  if (data.selfReview.warnings.length) data.selfReview.warnings.forEach(w => lines.push(`- Warning: ${w.label} — ${w.detail}`));
-  if (data.selfReview.unsupported.length) data.selfReview.unsupported.forEach(u => lines.push(`- Unsupported: ${u.label} — ${u.detail}`));
+  data.agentKernels.forEach(k => lines.push(`- ${k.name}: **${k.vote}** · score ${Math.round(k.score)} · confidence ${Math.round(k.confidence)}%`));
   lines.push(``);
   lines.push(`## Evidence Graph — Winner`);
   const winnerGraph = data.ranking[0]?.evidenceGraph;
   if (winnerGraph) winnerGraph.groups.forEach(g => lines.push(`- ${g.category}: ${g.summary} · confidence ${g.confidence}%`));
-  const winnerContradictions = data.ranking[0]?.contradictions;
-  if (winnerContradictions) { lines.push(``); lines.push(`## Contradiction Detector — Winner`); winnerContradictions.items.forEach(c => lines.push(`- ${c.level.toUpperCase()}: ${c.label} — ${c.detail}`)); }
+  else lines.push(`- Evidence graph unavailable.`);
   lines.push(``);
   lines.push(`## Evidence Trail — Winner`);
   const winnerEvidence = data.ranking[0]?.evidence || [];
-  winnerEvidence.forEach(e => lines.push(`- ${e.claim}: ${e.value} (${e.source})`));
+  winnerEvidence.slice(0, 12).forEach(e => lines.push(`- ${e.claim}: ${e.value} (${e.source})`));
   lines.push(``);
   lines.push(`## Next Agent Tasks`);
-  data.tasks.slice(0, 10).forEach(t => lines.push(`- [${t.priority}] ${t.agent}: ${t.title} — ${t.reason}`));
-  lines.push(``);
-  lines.push(`## Strategy Simulation`);
-  lines.push(`Simulated consensus: **${data.scenario.consensus.label}**`);
-  data.scenario.changes.forEach(c => lines.push(`- ${c.agent}: ${c.from} → ${c.to} (${c.scoreDelta >= 0 ? '+' : ''}${c.scoreDelta.toFixed(1)})`));
+  data.tasks.slice(0, 8).forEach(t => lines.push(`- [${t.priority}] ${t.agent}: ${t.title} — ${t.reason}`));
   lines.push(``);
   lines.push(`_For discovery and comparison only. Not financial advice._`);
   return lines.join('\n');
