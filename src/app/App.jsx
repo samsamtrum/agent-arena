@@ -477,18 +477,11 @@ function App() {
     </section>
 
 
-    <section className="bulk-panel panel glass-panel">
-      <div className="panel-head"><div><h2>Bulk Base Import</h2><p className="panel-kicker">Optional: build a full battle from multiple Base contracts.</p></div><div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div></div>
-      <div className="holder-key-row"><input type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear</button></div><div className="holder-key-row"><input type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear</button></div>
-      <textarea value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" />
-      {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
-    </section>
-
-    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Setup</a><a href="#export">Export</a></section>
+    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Analyze</a><a href="#advanced">Advanced</a><a href="#export">Export</a></section>
 
     <section className="grid" id="arena">
       <div className="panel controls command-panel">
-        <div className="panel-head"><div><h2>Battle Setup</h2><p className="panel-kicker">Start with one Base contract. Add more only when comparing contenders.</p></div><button onClick={addProject}>+ Add</button></div>
+        <div className="panel-head"><div><h2>Battle Setup</h2><p className="panel-kicker">Analyze one Base token first. Paste a contract, run core checks, then export an evidence-backed verdict.</p></div><button onClick={addProject}>+ Add</button></div>
         <label>Battle title<input value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
         {projects.map((p,i)=><details className="project-form" key={i} open>
           <summary className="project-summary">
@@ -496,7 +489,7 @@ function App() {
             <em>{Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0)}/100</em>
           </summary>
           <div className="setup-block priority-block">
-            <div className="setup-block-head"><b>1. Quick import</b><span>Fastest path: paste Base contract, then import market/security data.</span></div>
+            <div className="setup-block-head"><b>1. Quick import</b><span>Paste a Base contract. Analyze runs import, market, security, and available keyed scans.</span></div>
             <div className="import-row">
               <input value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" />
               <button className="primary-action" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Zap size={17}/>} Analyze Token</button><button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
@@ -509,7 +502,7 @@ function App() {
           </div>
 
           <details className="setup-block" open>
-            <summary className="setup-block-head"><b>2. Verification scans</b><span>Run only what you have keys/data for.</span></summary>
+            <summary className="setup-block-head"><b>2. Optional manual checks</b><span>Use these when you want to rerun one source only.</span></summary>
             <div className="scan-toolbar">
               <button className="security-button" onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}>{securityStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <LockKeyhole size={16}/>} Security Scan</button>
               <button className="security-button" onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}>{holderStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <Coins size={16}/>} Holder Scan</button>
@@ -565,6 +558,21 @@ function App() {
 
 
 
+
+    <section className="advanced-panel panel glass-panel" id="advanced">
+      <div className="panel-head"><div><h2>Advanced Sources</h2><p className="panel-kicker">Optional keys and bulk tools. Keep empty for a clean single-token scan.</p></div></div>
+      <details className="advanced-drawer">
+        <summary>API keys for deeper scans</summary>
+        <div className="holder-key-row"><input type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear</button></div>
+        <div className="holder-key-row"><input type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear</button></div>
+      </details>
+      <details className="advanced-drawer">
+        <summary>Bulk battle import</summary>
+        <textarea value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" />
+        <div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div>
+        {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
+      </details>
+    </section>
 
     <section className="export-panel panel glass-panel" id="export">
       <div className="panel-head"><div><h2>Agent Report Export Pack</h2><p className="panel-kicker">Shareable markdown and machine-readable JSON with evidence, gates, and gaps.</p></div><span className="base-chip">markdown + json</span></div>
