@@ -80,6 +80,10 @@ test('multi-contract entry shows ranking table and top one effect', async ({ pag
   await expect(page.getByText(/Source Judge/i).first()).toBeVisible();
   await expect(page.getByText(/Next Best Action/i).first()).toBeVisible();
   await expect(page.getByText(/Token Thesis/i).first()).toBeVisible();
+  await expect(page.getByText(/Evaluation Matrix/i).first()).toBeVisible();
+  await expect(page.getByText(/Calibration/i).first()).toBeVisible();
+  await expect(page.getByText(/Comparative Judge/i).first()).toBeVisible();
+  await expect(page.getByText(/Risk-Adjusted Upside/i).first()).toBeVisible();
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {

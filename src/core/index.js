@@ -21,6 +21,9 @@ export const agents = [
   { name: 'Source Judge Agent', icon: 'GitBranch', color: '#60a5fa', focus: 'cross-source conflicts and evidence arbitration' },
   { name: 'Action Agent', icon: 'Zap', color: '#facc15', focus: 'next best verification step and expected impact' },
   { name: 'Thesis Agent', icon: 'Brain', color: '#a78bfa', focus: 'bull case, bear case, and monitoring plan' },
+  { name: 'Evaluation Matrix Agent', icon: 'Code2', color: '#22d3ee', focus: 'weighted evaluation dimensions, penalties, and evidence reasons' },
+  { name: 'Calibration Agent', icon: 'ShieldAlert', color: '#fbbf24', focus: 'confidence caps, evidence unlocks, and score inflation control' },
+  { name: 'Comparative Judge Agent', icon: 'Swords', color: '#818cf8', focus: 'category wins, runner-up threat, and ranking rationale' },
   { name: 'Skeptic Agent', icon: 'Bot', color: '#94a3b8', focus: 'weak spots and fake hype detection' }
 ];
 
@@ -1302,16 +1305,16 @@ function scoreLabel(value) {
 }
 export const DEFAULT_WEIGHTS = {
   score: { builder: 26, market: 34, meme: 22, safety: 18 },
-  agents: { 'Builder Agent': 1.05, 'Trader Agent': 1.2, 'Risk Agent': 1.35, 'Meme Agent': .95, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.55, 'Evidence Agent': 1.25, 'Red Team Agent': 1.25, 'Source Judge Agent': 1.2, 'Action Agent': 1.05, 'Thesis Agent': 1.1, 'Skeptic Agent': 1.15 },
+  agents: { 'Builder Agent': 1.05, 'Trader Agent': 1.2, 'Risk Agent': 1.35, 'Meme Agent': .95, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.55, 'Evidence Agent': 1.25, 'Red Team Agent': 1.25, 'Source Judge Agent': 1.2, 'Action Agent': 1.05, 'Thesis Agent': 1.1, 'Evaluation Matrix Agent': 1.35, 'Calibration Agent': 1.3, 'Comparative Judge Agent': 1.25, 'Skeptic Agent': 1.15 },
   riskVeto: 70,
   preset: 'Balanced'
 };
 export const WEIGHT_PRESETS = {
   Balanced: DEFAULT_WEIGHTS,
-  Degen: { score: { builder: 16, market: 42, meme: 30, safety: 12 }, agents: { 'Builder Agent': .85, 'Trader Agent': 1.45, 'Risk Agent': .9, 'Meme Agent': 1.35, 'Whale Agent': 1.1, 'Risk Sentinel Agent': 1.05, 'Evidence Agent': .9, 'Red Team Agent': .95, 'Source Judge Agent': .9, 'Action Agent': .85, 'Thesis Agent': 1.05, 'Skeptic Agent': .8 }, riskVeto: 82, preset: 'Degen' },
-  Safe: { score: { builder: 22, market: 24, meme: 12, safety: 42 }, agents: { 'Builder Agent': 1, 'Trader Agent': .9, 'Risk Agent': 1.7, 'Meme Agent': .65, 'Whale Agent': 1.15, 'Risk Sentinel Agent': 1.9, 'Evidence Agent': 1.45, 'Red Team Agent': 1.55, 'Source Judge Agent': 1.45, 'Action Agent': 1.15, 'Thesis Agent': 1.05, 'Skeptic Agent': 1.5 }, riskVeto: 62, preset: 'Safe' },
-  Builder: { score: { builder: 44, market: 22, meme: 12, safety: 22 }, agents: { 'Builder Agent': 1.65, 'Trader Agent': .95, 'Risk Agent': 1.05, 'Meme Agent': .65, 'Whale Agent': .85, 'Risk Sentinel Agent': 1.25, 'Evidence Agent': 1.35, 'Red Team Agent': 1.15, 'Source Judge Agent': 1.25, 'Action Agent': 1.2, 'Thesis Agent': 1.45, 'Skeptic Agent': 1.1 }, riskVeto: 70, preset: 'Builder' },
-  'Meme Hunter': { score: { builder: 14, market: 30, meme: 40, safety: 16 }, agents: { 'Builder Agent': .75, 'Trader Agent': 1.15, 'Risk Agent': 1, 'Meme Agent': 1.7, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.15, 'Evidence Agent': .95, 'Red Team Agent': 1.05, 'Source Judge Agent': .95, 'Action Agent': .95, 'Thesis Agent': 1.25, 'Skeptic Agent': .85 }, riskVeto: 78, preset: 'Meme Hunter' }
+  Degen: { score: { builder: 16, market: 42, meme: 30, safety: 12 }, agents: { 'Builder Agent': .85, 'Trader Agent': 1.45, 'Risk Agent': .9, 'Meme Agent': 1.35, 'Whale Agent': 1.1, 'Risk Sentinel Agent': 1.05, 'Evidence Agent': .9, 'Red Team Agent': .95, 'Source Judge Agent': .9, 'Action Agent': .85, 'Thesis Agent': 1.05, 'Evaluation Matrix Agent': 1.15, 'Calibration Agent': 1.1, 'Comparative Judge Agent': 1.2, 'Skeptic Agent': .8 }, riskVeto: 82, preset: 'Degen' },
+  Safe: { score: { builder: 22, market: 24, meme: 12, safety: 42 }, agents: { 'Builder Agent': 1, 'Trader Agent': .9, 'Risk Agent': 1.7, 'Meme Agent': .65, 'Whale Agent': 1.15, 'Risk Sentinel Agent': 1.9, 'Evidence Agent': 1.45, 'Red Team Agent': 1.55, 'Source Judge Agent': 1.45, 'Action Agent': 1.15, 'Thesis Agent': 1.05, 'Evaluation Matrix Agent': 1.35, 'Calibration Agent': 1.55, 'Comparative Judge Agent': 1.25, 'Skeptic Agent': 1.5 }, riskVeto: 62, preset: 'Safe' },
+  Builder: { score: { builder: 44, market: 22, meme: 12, safety: 22 }, agents: { 'Builder Agent': 1.65, 'Trader Agent': .95, 'Risk Agent': 1.05, 'Meme Agent': .65, 'Whale Agent': .85, 'Risk Sentinel Agent': 1.25, 'Evidence Agent': 1.35, 'Red Team Agent': 1.15, 'Source Judge Agent': 1.25, 'Action Agent': 1.2, 'Thesis Agent': 1.45, 'Evaluation Matrix Agent': 1.25, 'Calibration Agent': 1.25, 'Comparative Judge Agent': 1.45, 'Skeptic Agent': 1.1 }, riskVeto: 70, preset: 'Builder' },
+  'Meme Hunter': { score: { builder: 14, market: 30, meme: 40, safety: 16 }, agents: { 'Builder Agent': .75, 'Trader Agent': 1.15, 'Risk Agent': 1, 'Meme Agent': 1.7, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.15, 'Evidence Agent': .95, 'Red Team Agent': 1.05, 'Source Judge Agent': .95, 'Action Agent': .95, 'Thesis Agent': 1.25, 'Evaluation Matrix Agent': 1.2, 'Calibration Agent': 1.15, 'Comparative Judge Agent': 1.25, 'Skeptic Agent': .85 }, riskVeto: 78, preset: 'Meme Hunter' }
 };
 export function readWeights() { try { return JSON.parse(localStorage.getItem(WEIGHTS_KEY) || 'null') || DEFAULT_WEIGHTS; } catch { return DEFAULT_WEIGHTS; } }
 export function normalizeScoreWeights(w) { const total = Object.values(w.score).reduce((a,b)=>a+num(b),0) || 100; return Object.fromEntries(Object.entries(w.score).map(([k,v])=>[k,num(v)/total])); }
@@ -1355,6 +1358,82 @@ export function evidenceAudit(p) {
   const weak = claims.filter(c => c.level === 'warn' || c.level === 'danger');
   const score = clamp(reliability.score * .42 + quality.completeness * .35 + graph.coverage * .23 - weak.filter(c => c.level === 'danger').length * 2);
   return { score: Math.round(score), reliability: reliability.score, badge: reliability.badge, completeness: quality.completeness, coverage: graph.coverage, supported, weak: weak.length, missingCritical: readiness.missingCritical, claims: claims.slice(0, 12), strongest: graph.strongest.slice(0, 5), risks: graph.risks.slice(0, 6), summary: `${supported}/${claims.length} evidence claims supported · ${quality.completeness}% complete · ${reliability.badge}` };
+}
+
+export function evaluationMatrix(p) {
+  const scores = p.scores || scoreProject(p);
+  const reliability = sourceReliability(p);
+  const calibration = confidenceCalibration({ ...p, scores }, scores.confidence || 0);
+  const sentinel = riskSentinel({ ...p, scores });
+  const judge = crossSourceJudge({ ...p, scores });
+  const dims = [
+    { id: 'liquidity', label: 'Liquidity quality', score: clamp(num(scores.market) * .55 + num(liquidityExitRisk(p).score) * .45), weight: 1.25, evidence: liquidityExitRisk(p).flags?.[0]?.label || `${money(p.liquidity)} liquidity`, confidence: sourcePlugins(p).plugins.find(x=>x.id==='market')?.confidence || 'Low' },
+    { id: 'holders', label: 'Holder distribution', score: num(holderIntel(p).score), weight: 1.2, evidence: holderIntel(p).flags?.[0]?.label || holderIntel(p).distribution?.tier || 'Holder data missing', confidence: holderIntel(p).confidence || 'Low' },
+    { id: 'contract', label: 'Contract safety', score: num(securityIntel(p).score), weight: 1.35, evidence: securityIntel(p).flags?.[0]?.label || 'Security scan missing', confidence: securityIntel(p).confidence || 'Low' },
+    { id: 'deployer', label: 'Deployer history', score: num(deployerIntel(p).score), weight: 1.05, evidence: deployerIntel(p).flags?.[0]?.label || 'Deployer scan missing', confidence: deployerIntel(p).confidence || 'Low' },
+    { id: 'momentum', label: 'Market momentum', score: num(scores.market), weight: 1.0, evidence: marketCrossCheck(p).flags?.[0]?.label || `${money(p.volume)} 24h volume`, confidence: marketCrossCheck(p).confidence || 'Low' },
+    { id: 'social', label: 'Social quality', score: num(scores.meme), weight: .75, evidence: socialIntel(p).flags?.[0]?.label || 'Social evidence missing', confidence: socialIntel(p).confidence || 'Low' },
+    { id: 'builder', label: 'Builder/GitHub evidence', score: num(scores.builder), weight: .8, evidence: githubFreshness(p).summary || 'GitHub repo missing', confidence: parseRepo(p.repo || p.repoUrl || '') ? 'Medium' : 'Low' },
+    { id: 'reliability', label: 'Source reliability', score: num(reliability.score), weight: 1.25, evidence: reliability.badge, confidence: reliability.badge },
+    { id: 'conflict', label: 'Conflict severity', score: num(judge.score), weight: 1.15, evidence: judge.summary, confidence: judge.verdict },
+    { id: 'exit', label: 'Exit risk', score: clamp(100 - num(rugPatternDetector(p).score)), weight: 1.2, evidence: rugPatternDetector(p).summary, confidence: rugPatternDetector(p).level }
+  ].map(d => {
+    const penalty = Math.round((100 - num(d.score)) * d.weight / 6 + (String(d.confidence).match(/Low|Missing|Blocked|Critical|Danger|Insufficient/i) ? 4 : 0));
+    return { ...d, score: Math.round(clamp(num(d.score))), weighted: Math.round(clamp(num(d.score)) * d.weight), penalty, reason: `${d.label}: ${d.evidence}` };
+  });
+  const weightedScore = Math.round(dims.reduce((sum,d)=>sum+d.score*d.weight,0) / Math.max(1, dims.reduce((sum,d)=>sum+d.weight,0)));
+  const penalty = Math.round(clamp(sentinel.totalPenalty + judge.penalty * .45 + (100 - calibration.calibrated) * .12, 0, 55));
+  const finalScore = Math.round(clamp(weightedScore - penalty));
+  const strongest = dims.slice().sort((a,b)=>b.score-a.score).slice(0,3);
+  const weakest = dims.slice().sort((a,b)=>a.score-b.score).slice(0,3);
+  const label = finalScore >= 82 ? 'Strong Evaluation' : finalScore >= 65 ? 'Qualified Watch' : finalScore >= 45 ? 'Weak / Conditional' : 'Do Not Trust Yet';
+  return { label, score: finalScore, weightedScore, penalty, dimensions: dims, strongest, weakest, summary: `${label}: ${finalScore}/100 after ${penalty} evaluation penalty.` };
+}
+
+export function calibrationAgent(p) {
+  const scores = p.scores || scoreProject(p);
+  const calibration = confidenceCalibration({ ...p, scores }, scores.confidence || 0);
+  const rawScore = Math.round(scores.adjustedFinal ?? scores.final ?? 0);
+  const calibratedScore = Math.round(clamp(rawScore * (calibration.calibrated / 100)));
+  const inflationRisk = rawScore - calibratedScore;
+  const whyCapped = calibration.caps.map(c => c.reason);
+  if (!whyCapped.length && inflationRisk > 10) whyCapped.push('Evidence weighting lowers confidence versus raw score.');
+  const requiredEvidenceToUnlock = calibration.unlocks.length ? calibration.unlocks : ['Maintain source freshness and save a re-scan baseline'];
+  const label = inflationRisk >= 28 ? 'Overstated Score' : inflationRisk >= 16 ? 'Needs Calibration' : inflationRisk >= 8 ? 'Mildly Capped' : 'Well Calibrated';
+  return { label, rawScore, calibratedScore, confidenceCap: calibration.cap, calibratedConfidence: calibration.calibrated, inflationRisk, whyCapped, requiredEvidenceToUnlock, tier: calibration.tier, evidenceScore: calibration.evidenceScore, summary: `${label}: raw ${rawScore}, calibrated ${calibratedScore}, confidence cap ${calibration.cap}%.` };
+}
+
+export function comparativeJudge(p, ranked = [], runner = null) {
+  const all = (ranked && ranked.length ? ranked : [p, runner].filter(Boolean)).map(x => ({ ...x, scores: x.scores || scoreProject(x) }));
+  const current = all.find(x => projectId(x) === projectId(p)) || { ...p, scores: p.scores || scoreProject(p) };
+  const other = runner || all.find(x => projectId(x) !== projectId(current));
+  const categories = [
+    ['market', 'Market'], ['builder', 'Builder'], ['meme', 'Narrative'], ['safety', 'Safety'], ['confidence', 'Confidence'], ['adjustedFinal', 'Adjusted score']
+  ];
+  const categoryWins = categories.map(([key,label]) => {
+    const sorted = all.slice().sort((a,b)=>num(b.scores?.[key] ?? b.scores?.final)-num(a.scores?.[key] ?? a.scores?.final));
+    const winner = sorted[0] || current;
+    return { category: label, winner: winner.symbol || winner.name || shortAddr(winner.contract) || 'Token', score: Math.round(num(winner.scores?.[key] ?? winner.scores?.final)), isCurrent: projectId(winner) === projectId(current) };
+  });
+  const safetyWinner = categoryWins.find(x=>x.category==='Safety')?.winner || 'Unknown';
+  const dataQualityWinnerObj = all.slice().sort((a,b)=>dataQuality(b).completeness-dataQuality(a).completeness)[0] || current;
+  const upsideWinnerObj = all.slice().sort((a,b)=>riskAdjustedUpside(b).riskRewardRatio-riskAdjustedUpside(a).riskRewardRatio)[0] || current;
+  const margin = other ? Math.round(num(current.scores.adjustedFinal ?? current.scores.final) - num(other.scores?.adjustedFinal ?? other.scores?.final)) : null;
+  const runnerUpThreat = !other ? 'No runner-up available.' : margin <= 4 ? 'High: runner-up can overtake with one scan or score shift.' : margin <= 10 ? 'Medium: runner-up is close enough to monitor.' : 'Low: winner has a clear adjusted-score margin.';
+  const winnerReason = categoryWins.filter(x=>x.isCurrent).slice(0,3).map(x=>`${x.category} (${x.score})`).join(', ') || 'Current token does not dominate any major category.';
+  const finalRankingRationale = other ? `${current.symbol || current.name || 'Winner'} leads by ${margin} adjusted points; strongest edges: ${winnerReason}.` : `${current.symbol || current.name || 'Token'} is evaluated without a runner-up.`;
+  return { winnerReason, runnerUpThreat, categoryWins, safetyWinner, upsideWinner: upsideWinnerObj.symbol || upsideWinnerObj.name || 'Token', dataQualityWinner: dataQualityWinnerObj.symbol || dataQualityWinnerObj.name || 'Token', finalRankingRationale, margin, summary: finalRankingRationale };
+}
+
+export function riskAdjustedUpside(p) {
+  const scores = p.scores || scoreProject(p);
+  const rug = rugPatternDetector(p);
+  const upsideScore = Math.round(clamp(scores.market * .35 + scores.meme * .25 + scores.builder * .2 + num(p.priceChange24h) * .2 + Math.min(20, num(p.volume) / Math.max(1, num(p.liquidity)) * 8)));
+  const downsideScore = Math.round(clamp((100 - scores.safety) * .45 + rug.score * .35 + (100 - sourceReliability(p).score) * .2));
+  const riskRewardRatio = Math.round(clamp(upsideScore - downsideScore + 50));
+  const positionType = riskRewardRatio >= 76 && downsideScore < 45 ? 'Risk-adjusted leader' : upsideScore >= 72 && downsideScore >= 55 ? 'High-upside / high-risk' : downsideScore >= 65 ? 'Avoid / prove safety first' : upsideScore >= 60 ? 'Speculative watch' : 'Low-conviction watch';
+  const allocationHint = positionType === 'Risk-adjusted leader' ? 'Watchlist-size candidate after scans stay clean.' : positionType === 'High-upside / high-risk' ? 'Track only; require safety unlocks before sizing.' : positionType.includes('Avoid') ? 'No allocation until critical risk clears.' : 'Small watchlist slot only.';
+  return { upsideScore, downsideScore, riskRewardRatio, positionType, allocationHint, summary: `${positionType}: upside ${upsideScore}, downside ${downsideScore}, ratio ${riskRewardRatio}.` };
 }
 
 export function redTeamChallenge(p, runner) {
@@ -1458,6 +1537,9 @@ export function agentKernel(p, runner) {
   const judge = crossSourceJudge({ ...p, scores: s });
   const nextAction = nextBestAction({ ...p, scores: s });
   const thesis = tokenThesis({ ...p, scores: s }, runner);
+  const matrix = evaluationMatrix({ ...p, scores: s });
+  const calibrationEval = calibrationAgent({ ...p, scores: s });
+  const comparative = comparativeJudge({ ...p, scores: s }, [p, runner].filter(Boolean), runner);
   const kernels = [
     {
       name: 'Builder Agent', weight: weights.agents['Builder Agent'], score: s.builder, vote: voteFromScore(s.builder), confidence: clamp((s.confidence*.45)+(s.builder*.55)),
@@ -1524,6 +1606,24 @@ export function agentKernel(p, runner) {
       bullish: [thesis.bullCase],
       bearish: [thesis.bearCase, thesis.changeMind].filter(Boolean),
       changeMind: thesis.monitoringPlan[0]
+    },
+    {
+      name: 'Evaluation Matrix Agent', weight: weights.agents['Evaluation Matrix Agent'], score: matrix.score, vote: voteFromScore(matrix.score), confidence: clamp(matrix.score * .45 + audit.score * .25 + sourceReliability(p).score * .3),
+      bullish: matrix.strongest.map(d => `${d.label}: ${d.score}`),
+      bearish: matrix.weakest.map(d => `${d.label}: ${d.score} · ${d.evidence}`),
+      changeMind: matrix.weakest[0]?.reason || 'Improve weakest weighted evaluation dimension.'
+    },
+    {
+      name: 'Calibration Agent', weight: weights.agents['Calibration Agent'], score: calibrationEval.calibratedScore, vote: calibrationEval.inflationRisk >= 24 ? 'Bearish' : calibrationEval.inflationRisk >= 12 ? 'Neutral' : 'Bullish', confidence: clamp(100 - calibrationEval.inflationRisk),
+      bullish: [calibrationEval.label === 'Well Calibrated' && 'Raw score is supported by evidence confidence'].filter(Boolean),
+      bearish: [...calibrationEval.whyCapped, `Required unlock: ${calibrationEval.requiredEvidenceToUnlock[0]}`].filter(Boolean),
+      changeMind: calibrationEval.requiredEvidenceToUnlock.join(' · ')
+    },
+    {
+      name: 'Comparative Judge Agent', weight: weights.agents['Comparative Judge Agent'], score: clamp(50 + (comparative.margin ?? 0) * 3 + comparative.categoryWins.filter(x=>x.isCurrent).length * 6), vote: (comparative.margin ?? 99) <= 4 ? 'Neutral' : 'Bullish', confidence: clamp(62 + Math.abs(comparative.margin ?? 8) * 2),
+      bullish: [comparative.winnerReason],
+      bearish: [comparative.runnerUpThreat],
+      changeMind: comparative.finalRankingRationale
     },
     {
       name: 'Skeptic Agent', weight: weights.agents['Skeptic Agent'], score: clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0) - (redTeam.level === 'critical' ? 10 : 0)), vote: voteFromScore(clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0) - (redTeam.level === 'critical' ? 10 : 0))), confidence: clamp((100-s[weak])*.55 + s.confidence*.45 + (sentinel.hardVeto ? 12 : 0)),
@@ -1731,11 +1831,11 @@ export function evidenceSummary(p) {
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
-  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p), redTeam: redTeamChallenge(p, ranked[i + 1]), sourceJudge: crossSourceJudge(p), nextAction: nextBestAction(p, ranked), thesis: tokenThesis(p, ranked[i + 1]) }));
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p), redTeam: redTeamChallenge(p, ranked[i + 1]), sourceJudge: crossSourceJudge(p), nextAction: nextBestAction(p, ranked), thesis: tokenThesis(p, ranked[i + 1]), evaluationMatrix: evaluationMatrix(p), calibrationAgent: calibrationAgent(p), comparativeJudge: comparativeJudge(p, ranked, ranked[i + 1]), riskAdjustedUpside: riskAdjustedUpside(p) }));
   return {
     version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner), redTeam: redTeamChallenge(winner, ranked[1]), sourceJudge: crossSourceJudge(winner), nextAction: nextBestAction(winner, ranked), thesis: tokenThesis(winner, ranked[1]) },
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner), redTeam: redTeamChallenge(winner, ranked[1]), sourceJudge: crossSourceJudge(winner), nextAction: nextBestAction(winner, ranked), thesis: tokenThesis(winner, ranked[1]), evaluationMatrix: evaluationMatrix(winner), calibrationAgent: calibrationAgent(winner), comparativeJudge: comparativeJudge(winner, ranked, ranked[1]), riskAdjustedUpside: riskAdjustedUpside(winner) },
     ranking,
     agentKernels: kernels,
     consensus,
@@ -1894,6 +1994,15 @@ export function reportMarkdown(data) {
   lines.push(`Next best action: **${data.winner.nextAction?.nextScan || 'Save current snapshot'}** — ${data.winner.nextAction?.why || 'Create baseline.'} Impact: ${data.winner.nextAction?.expectedImpact || 'Improves monitoring.'}`);
   lines.push(`Thesis: ${data.winner.thesis?.thesis || 'No thesis generated.'}`);
   (data.winner.thesis?.monitoringPlan || []).slice(0, 3).forEach(x => lines.push(`- Monitor: ${x}`));
+  lines.push(``);
+  lines.push(`## Evaluation Matrix / Calibration / Comparison`);
+  lines.push(`Evaluation matrix: **${data.winner.evaluationMatrix?.label || 'Unavailable'}** · score **${data.winner.evaluationMatrix?.score ?? 0}/100** · penalty **-${data.winner.evaluationMatrix?.penalty ?? 0}**`);
+  (data.winner.evaluationMatrix?.weakest || []).slice(0, 3).forEach(d => lines.push(`- Weak dimension: ${d.label} — ${d.score}/100 · ${d.evidence}`));
+  lines.push(`Calibration: **${data.winner.calibrationAgent?.label || 'Unavailable'}** · raw **${data.winner.calibrationAgent?.rawScore ?? 0}** → calibrated **${data.winner.calibrationAgent?.calibratedScore ?? 0}** · cap **${data.winner.calibrationAgent?.confidenceCap ?? 0}%**`);
+  (data.winner.calibrationAgent?.requiredEvidenceToUnlock || []).slice(0, 3).forEach(x => lines.push(`- Unlock: ${x}`));
+  lines.push(`Comparative judge: ${data.winner.comparativeJudge?.finalRankingRationale || 'No comparison available.'}`);
+  lines.push(`Runner-up threat: ${data.winner.comparativeJudge?.runnerUpThreat || 'N/A'}`);
+  lines.push(`Risk-adjusted upside: **${data.winner.riskAdjustedUpside?.positionType || 'Unavailable'}** — ${data.winner.riskAdjustedUpside?.summary || 'N/A'}`);
   lines.push(``);
   lines.push(`## Evidence Graph — Winner`);
   const winnerGraph = data.ranking[0]?.evidenceGraph;

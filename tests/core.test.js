@@ -117,6 +117,9 @@ test('consensus activates risk veto when Risk Agent is bearish with high confide
   assert.ok(kernels.some(k => k.name === 'Source Judge Agent'));
   assert.ok(kernels.some(k => k.name === 'Action Agent'));
   assert.ok(kernels.some(k => k.name === 'Thesis Agent'));
+  assert.ok(kernels.some(k => k.name === 'Evaluation Matrix Agent'));
+  assert.ok(kernels.some(k => k.name === 'Calibration Agent'));
+  assert.ok(kernels.some(k => k.name === 'Comparative Judge Agent'));
 });
 
 
@@ -133,6 +136,21 @@ test('red team and source judge expose attack vectors and next actions', () => {
   assert.ok(action.nextScan);
   assert.ok(thesis.bullCase);
   assert.ok(thesis.bearCase);
+});
+
+test('evaluation, calibration, and comparative agents produce structured judgment', () => {
+  const ranked = [baseProject, weakProject].map(p => ({ ...p, scores: core.scoreProject(p) })).sort((a, b) => b.scores.final - a.scores.final);
+  const matrix = core.evaluationMatrix(ranked[0]);
+  const calibration = core.calibrationAgent(ranked[0]);
+  const comparative = core.comparativeJudge(ranked[0], ranked, ranked[1]);
+  const upside = core.riskAdjustedUpside(ranked[0]);
+  assert.ok(matrix.dimensions.length >= 10);
+  assert.ok(matrix.weakest.length);
+  assert.ok(Number.isFinite(calibration.calibratedScore));
+  assert.ok(calibration.requiredEvidenceToUnlock.length);
+  assert.ok(comparative.categoryWins.length >= 6);
+  assert.ok(comparative.finalRankingRationale);
+  assert.ok(Number.isFinite(upside.riskRewardRatio));
 });
 
 test('evidence veto activates when critical evidence is almost completely missing', () => {
@@ -385,6 +403,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Sentinel:/);
   assert.match(md, /Evidence audit:/);
   assert.match(md, /Red Team \/ Source Judge \/ Thesis/);
+  assert.match(md, /Evaluation Matrix \/ Calibration \/ Comparison/);
+  assert.match(md, /Evaluation matrix:/);
+  assert.match(md, /Comparative judge:/);
   assert.match(md, /Next best action:/);
   assert.match(md, /Thesis:/);
   assert.match(md, /Evidence Trail/);
@@ -397,5 +418,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.ok(data.winner.sourceJudge);
   assert.ok(data.winner.nextAction);
   assert.ok(data.winner.thesis);
+  assert.ok(data.winner.evaluationMatrix);
+  assert.ok(data.winner.calibrationAgent);
+  assert.ok(data.winner.comparativeJudge);
+  assert.ok(data.winner.riskAdjustedUpside);
   assert.doesNotThrow(() => JSON.stringify(data));
 });

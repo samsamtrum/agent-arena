@@ -5,7 +5,7 @@ const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
 const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 import { toPng } from 'html-to-image';
 import '../styles.css';
-import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
 
 function App() {
   const [projects, setProjects] = useState(defaults);
@@ -70,6 +70,10 @@ function App() {
   const sourceJudge = useMemo(() => crossSourceJudge(winner), [winner]);
   const nextAction = useMemo(() => nextBestAction(winner, ranked), [winner, ranked]);
   const thesis = useMemo(() => tokenThesis(winner, ranked[1]), [winner, ranked]);
+  const evalMatrix = useMemo(() => evaluationMatrix(winner), [winner]);
+  const calibrationEval = useMemo(() => calibrationAgent(winner), [winner]);
+  const comparativeEval = useMemo(() => comparativeJudge(winner, ranked, ranked[1]), [winner, ranked]);
+  const upsideEval = useMemo(() => riskAdjustedUpside(winner), [winner]);
   const caption = useMemo(() => makeCaption(winner, winnerIntel), [winner, winnerIntel]);
   const update = (i, key, value) => setProjects(ps => ps.map((p, idx) => idx === i ? { ...p, [key]: value } : p));
   const addProject = () => setProjects(ps => [...ps, emptyProject()]);
@@ -558,6 +562,12 @@ function App() {
             <div><b>Source Judge</b><strong>{sourceJudge.verdict}</strong><span>{sourceJudge.summary}</span><em>Penalty -{sourceJudge.penalty}</em></div>
             <div><b>Next Best Action</b><strong>{nextAction.priority}</strong><span>{nextAction.nextScan}</span><em>{nextAction.expectedImpact}</em></div>
             <div><b>Token Thesis</b><strong>{thesis.verdict}</strong><span>{thesis.bullCase}</span><em>{thesis.changeMind}</em></div>
+          </div>
+          <div className="agent-eval-grid">
+            <div><b>Evaluation Matrix</b><strong>{evalMatrix.score}/100</strong><span>{evalMatrix.summary}</span><em>Weakest: {evalMatrix.weakest[0]?.label}</em></div>
+            <div><b>Calibration</b><strong>{calibrationEval.label}</strong><span>Raw {calibrationEval.rawScore} → calibrated {calibrationEval.calibratedScore}</span><em>Cap {calibrationEval.confidenceCap}% · unlock {calibrationEval.requiredEvidenceToUnlock[0]}</em></div>
+            <div><b>Comparative Judge</b><strong>{comparativeEval.margin ?? 'N/A'}</strong><span>{comparativeEval.finalRankingRationale}</span><em>{comparativeEval.runnerUpThreat}</em></div>
+            <div><b>Risk-Adjusted Upside</b><strong>{upsideEval.riskRewardRatio}</strong><span>{upsideEval.positionType}</span><em>{upsideEval.allocationHint}</em></div>
           </div>
         </> : <p className="muted">Agent council activates after real token data is imported.</p>}
       </section>
