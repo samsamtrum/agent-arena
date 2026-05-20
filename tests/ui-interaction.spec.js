@@ -30,10 +30,8 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
   await page.getByRole('button', { name: /^\+ Add$/ }).click();
-  await expect(page.getByPlaceholder('Base token/project name')).toHaveCount(2);
+  await expect(page.getByPlaceholder('Paste Base token contract')).toHaveCount(2);
 
-  const names = page.getByPlaceholder('Base token/project name');
-  await names.nth(1).fill('Manual UI QA Token');
   const contracts = page.getByPlaceholder('Paste Base token contract');
   await contracts.nth(1).fill('0x9999999999999999999999999999999999999999');
 
@@ -45,7 +43,7 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
   expect(downloads.length).toBeGreaterThanOrEqual(2);
 
   await page.getByRole('button', { name: /^\+ Add$/ }).click();
-  await expect(page.getByPlaceholder('Base token/project name')).toHaveCount(3);
+  await expect(page.getByPlaceholder('Paste Base token contract')).toHaveCount(3);
 });
 
 test('invalid external scans show useful status instead of crashing', async ({ page }) => {
@@ -74,7 +72,6 @@ test('core export section remains interactive in simplified UI', async ({ page }
 });
 
 test('downloaded report files are valid and do not contain broken placeholders', async ({ page }) => {
-  await page.getByPlaceholder('Base token/project name').first().fill('Report QA Token');
   await page.getByPlaceholder('Paste Base token contract').first().fill('0x9999999999999999999999999999999999999999');
   await page.getByPlaceholder('GitHub repo or URL').first().fill('facebook/react');
   const mdDownloadPromise = page.waitForEvent('download');
@@ -110,7 +107,7 @@ test('GitHub import live updates builder fields and bad repos show status', asyn
   await page.getByRole('button', { name: /^Repo$/i }).first().click();
   await expect(page.getByText('Imported facebook/react from GitHub.')).toBeVisible({ timeout: 20_000 });
   await expect(repoInput).toHaveValue('facebook/react');
-  await expect(page.getByText(/stars/i).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Repo$/i }).first()).toBeVisible();
 
   await repoInput.fill('definitely-not-a-real-owner-zzzz/not-a-real-repo-zzzz');
   await page.getByRole('button', { name: /^Repo$/i }).first().click();

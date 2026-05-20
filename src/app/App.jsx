@@ -466,20 +466,7 @@ function App() {
             {deployerStatus[i] && deployerStatus[i] !== 'loading' && <p className={deployerStatus[i].includes('complete') ? 'status ok' : 'status'}>{deployerStatus[i]}</p>}
           </details>
 
-          <details className="setup-block" open>
-            <summary className="setup-block-head"><b>3. Manual tuning</b><span>Optional fields for demos, missing APIs, or edge cases.</span></summary>
-            <input value={p.name} onChange={e=>update(i,'name',e.target.value)} placeholder="Base token/project name" />
-            <div className="mini-grid">
-              <label>Stars<input type="number" value={p.stars} onChange={e=>update(i,'stars',+e.target.value)} /></label>
-              <label>Commits<input type="number" value={p.commits} onChange={e=>update(i,'commits',+e.target.value)} /></label>
-              <label>Forks<input type="number" value={p.forks || 0} onChange={e=>update(i,'forks',+e.target.value)} /></label>
-              <label>Volume<input type="number" value={p.volume} onChange={e=>update(i,'volume',+e.target.value)} /></label>
-              <label>Liquidity<input type="number" value={p.liquidity} onChange={e=>update(i,'liquidity',+e.target.value)} /></label>
-              <label>Mentions<input type="number" value={p.mentions} onChange={e=>update(i,'mentions',+e.target.value)} /></label>
-              <label>Issues<input type="number" value={p.openIssues || 0} onChange={e=>update(i,'openIssues',+e.target.value)} /></label>
-              <label>Risk<input type="number" value={p.risk} onChange={e=>update(i,'risk',+e.target.value)} /></label>
-            </div>
-          </details>
+
 
           <div className="market-strip">
             <span>{p.symbol || 'TOKEN'}</span><b>{money(p.price, 4)}</b><span>{money(p.marketCap)} cap</span>{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}
