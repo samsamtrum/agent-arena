@@ -469,17 +469,27 @@ function App() {
         <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Analysis</a><a href="#export" className="btn"><Download size={18}/> Export Report</a></div>
         <div className="trust-strip"><span>Base-only</span><span>No fake scans</span><span>Evidence-gated</span></div>
       </div>
-      <div className="hero-dashboard" aria-label="AgentArena workflow summary">
-        <div><small>01</small><b>Import</b><span>Paste a Base contract or repo.</span></div>
-        <div><small>02</small><b>Verify</b><span>Run market, contract, holder, and social checks.</span></div>
-        <div><small>03</small><b>Decide</b><span>Export a clear evidence-backed risk report.</span></div>
+      <div className="cockpit-shell" aria-label="AgentArena cockpit preview">
+        <div className="orbit-ring"></div>
+        <div className="cockpit-core">
+          <img src="/avatar-192.png" alt="AgentArena avatar" />
+          <span>LIVE BASE INTEL</span>
+          <b>Risk Cockpit</b>
+        </div>
+        <div className="cockpit-metric metric-a"><small>01</small><b>Import</b><span>Base contract</span></div>
+        <div className="cockpit-metric metric-b"><small>02</small><b>Verify</b><span>Market + security</span></div>
+        <div className="cockpit-metric metric-c"><small>03</small><b>Decide</b><span>Evidence report</span></div>
       </div>
     </section>
 
 
-    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Analyze</a><a href="#export">Export</a><a href="#advanced">Advanced</a></section>
+    <section className="command-deck" aria-label="Page sections">
+      <a href="#arena"><small>01</small><b>Analyze</b><span>Paste one Base contract</span></a>
+      <a href="#export"><small>02</small><b>Export</b><span>Download report pack</span></a>
+      <a href="#advanced"><small>03</small><b>Advanced</b><span>API keys + bulk scans</span></a>
+    </section>
 
-    <section className="flow-intro" aria-label="Analysis flow"><div><b>1</b><span>Paste Base contract</span></div><div><b>2</b><span>Run evidence checks</span></div><div><b>3</b><span>Read verdict</span></div><div><b>4</b><span>Export report</span></div></section>
+    <section className="mission-flow" aria-label="Analysis flow"><div><b>01</b><span>Paste Base contract</span></div><div><b>02</b><span>Run evidence checks</span></div><div><b>03</b><span>Read verdict</span></div><div><b>04</b><span>Export report</span></div></section>
 
     <section className="grid" id="arena">
       <div className="panel controls command-panel">
@@ -527,7 +537,7 @@ function App() {
         </details>)}
       </div>
 
-      <div className="panel card-panel result-panel">
+      <div className="panel card-panel result-panel holo-result">
         <div id="share-card" className="share-card">
           <div className="card-glow" />
           <div className="card-top"><span><Zap size={18}/> {battleTitle}</span><span>AgentArena · Base</span></div>
