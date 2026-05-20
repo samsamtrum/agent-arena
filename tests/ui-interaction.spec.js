@@ -37,9 +37,6 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
   const contracts = page.getByPlaceholder('Paste Base token contract');
   await contracts.nth(1).fill('0x9999999999999999999999999999999999999999');
 
-  await page.getByRole('button', { name: /Save Battle/i }).first().click();
-  await expect(page.getByText('Battle saved locally.')).toBeVisible();
-
   const downloads = [];
   page.on('download', d => downloads.push(d));
   await page.getByRole('button', { name: /Download MD/i }).click();
@@ -47,8 +44,8 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
   await expect(page.getByText(/downloaded/i)).toBeVisible();
   expect(downloads.length).toBeGreaterThanOrEqual(2);
 
-  await page.getByRole('button', { name: /^New$/ }).click();
-  await expect(page.getByText('Started a fresh battle.')).toBeVisible();
+  await page.getByRole('button', { name: /^\+ Add$/ }).click();
+  await expect(page.getByPlaceholder('Base token/project name')).toHaveCount(3);
 });
 
 test('invalid external scans show useful status instead of crashing', async ({ page }) => {
@@ -72,8 +69,8 @@ test('invalid external scans show useful status instead of crashing', async ({ p
 test('core export section remains interactive in simplified UI', async ({ page }) => {
   await page.getByText('Agent Report Export Pack').scrollIntoViewIfNeeded();
   await expect(page.getByText(/Export the full agent analysis/)).toBeVisible();
-  await page.getByRole('button', { name: /^Save$/ }).click();
-  await expect(page.getByText('Battle saved locally.')).toBeVisible();
+  await page.getByRole('button', { name: /Download JSON/i }).click();
+  await expect(page.getByText(/downloaded/i)).toBeVisible();
 });
 
 test('downloaded report files are valid and do not contain broken placeholders', async ({ page }) => {
@@ -151,8 +148,6 @@ test.describe('responsive smoke', () => {
       await expect(page.getByRole('heading', { name: 'Battle Setup' })).toBeVisible();
       await page.getByText('Agent Report Export Pack').scrollIntoViewIfNeeded();
       await expect(page.getByRole('button', { name: /Download MD/i })).toBeVisible();
-      await page.getByText('Saved Battles').first().scrollIntoViewIfNeeded();
-      await expect(page.locator('.history-panel').getByRole('button', { name: /^Save$/ })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(12);
     });
