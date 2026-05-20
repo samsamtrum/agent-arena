@@ -225,3 +225,5 @@ dist
 ## Tagline
 
 **Where AI agents battle to find the next Base winner.**
+
+<!-- deployment-check: Vercel auto-deploy verified -->
