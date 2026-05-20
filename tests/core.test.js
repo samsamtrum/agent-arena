@@ -205,6 +205,18 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('re-scan intelligence compares current token health against prior snapshots', () => {
+  const oldScores = core.scoreProject(baseProject);
+  const oldSnap = core.compactSnapshot({ ...baseProject, scores: oldScores });
+  oldSnap.ts = Date.now() - 86_400_000;
+  const weaker = { ...baseProject, liquidity: 90_000, priceChange24h: 58, risk: 42, holders: { ...baseProject.holders, topHolders: [{ TokenHolderAddress: baseProject.deployerAddress, TokenHolderQuantity: 260000 }, ...baseProject.holders.topHolders.slice(1)] } };
+  weaker.scores = core.scoreProject(weaker);
+  const delta = core.riskDeltaEngine(weaker, { [core.projectId(weaker)]: [oldSnap] });
+  assert.ok(delta.prev);
+  assert.ok(['Weakening', 'Risk Spike', 'Distribution Alert'].includes(delta.status));
+  assert.ok(delta.alerts.some(a => /Liquidity|Holder|Risk|Score|Verdict|gate/i.test(a.label)));
+});
+
 test('report export includes winner, ranking, evidence, and tasks', () => {
   const ranked = [baseProject, weakProject].map(p => ({ ...p, scores: core.scoreProject(p) })).sort((a, b) => b.scores.final - a.scores.final);
   const winner = ranked[0];
@@ -222,6 +234,7 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Re-scan Intelligence/);
   assert.match(md, /Evidence Trail/);
   assert.doesNotThrow(() => JSON.stringify(data));
 });

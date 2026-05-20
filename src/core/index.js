@@ -97,18 +97,21 @@ export function readSnapshots() {
 export function writeSnapshots(items) { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(items)); }
 export function projectId(p) { return (p.contract || p.symbol || p.name || '').toLowerCase(); }
 export function compactSnapshot(p) {
+  const scores = p.scores || scoreProject(p);
+  const tokenIntel = tokenIntelligence({ ...p, scores });
   return {
     ts: Date.now(), name: p.name, symbol: p.symbol, contract: p.contract,
-    final: Math.round(p.scores?.final || scoreProject(p).final),
-    builder: Math.round(p.scores?.builder || scoreProject(p).builder),
-    market: Math.round(p.scores?.market || scoreProject(p).market),
-    meme: Math.round(p.scores?.meme || scoreProject(p).meme),
-    safety: Math.round(p.scores?.safety || scoreProject(p).safety),
-    confidence: Math.round(p.scores?.confidence || scoreProject(p).confidence),
+    final: Math.round(scores.final), adjustedFinal: Math.round(scores.adjustedFinal ?? scores.final), verdict: tokenIntel.label, gate: tokenIntel.gate, penalty: Math.round(tokenIntel.penalty || 0),
+    builder: Math.round(scores.builder), market: Math.round(scores.market), meme: Math.round(scores.meme), safety: Math.round(scores.safety), confidence: Math.round(tokenIntel.confidence ?? scores.confidence),
     volume: num(p.volume), liquidity: num(p.liquidity), marketCap: num(p.marketCap), risk: num(p.risk), top10Pct: num(p.holders?.top10Pct || holderDistribution(p).top10Pct),
     holderScore: Math.round(holderDistribution(p).score), whaleScore: Math.round(whaleFlowIntel(p).score), whaleDirection: whaleFlowIntel(p).direction || 'Unknown',
     accumulationPct: num(whaleFlowIntel(p).accumulationPct), distributionPct: num(whaleFlowIntel(p).distributionPct), ownerOutPct: num(whaleFlowIntel(p).ownerOutPct), burstScore: num(whaleFlowIntel(p).burstScore)
   };
+}
+export function sameSnapshotMetrics(a, b) {
+  if (!a || !b) return false;
+  const keys = ['adjustedFinal','final','verdict','gate','confidence','volume','liquidity','marketCap','risk','top10Pct','holderScore','whaleScore','whaleDirection','ownerOutPct'];
+  return keys.every(k => String(a[k] ?? '') === String(b[k] ?? ''));
 }
 export function pctChange(now, before) {
   if (!before) return null;
@@ -116,12 +119,13 @@ export function pctChange(now, before) {
 }
 export function riskDeltaEngine(p, snapshots) {
   const id = projectId(p);
-  const history = (snapshots[id] || []).slice().sort((a,b)=>a.ts-b.ts);
   const current = compactSnapshot({ ...p, scores: p.scores || scoreProject(p) });
-  const prev = history.length ? history[history.length - 1] : null;
+  const history = (snapshots[id] || []).slice().sort((a,b)=>a.ts-b.ts);
+  const comparableHistory = history.filter(x => !sameSnapshotMetrics(x, current));
+  const prev = comparableHistory.length ? comparableHistory[comparableHistory.length - 1] : null;
   if (!prev) return { status: 'New', level: 'neutral', severity: 0, history, current, prev: null, deltas: null, alerts: [{ level: 'neutral', label: 'No previous snapshot', detail: 'Save a snapshot, rescan later, then compare token health deltas.' }], summary: 'No previous snapshot yet.' };
   const deltas = {
-    score: current.final - prev.final,
+    score: current.adjustedFinal - num(prev.adjustedFinal ?? prev.final),
     safety: current.safety - num(prev.safety),
     volumePct: pctChange(current.volume, prev.volume),
     liquidityPct: pctChange(current.liquidity, prev.liquidity),
@@ -135,7 +139,9 @@ export function riskDeltaEngine(p, snapshots) {
     distributionPct: current.distributionPct - num(prev.distributionPct),
     ownerOutPct: current.ownerOutPct - num(prev.ownerOutPct),
     burstScore: current.burstScore - num(prev.burstScore),
-    whaleDirectionChanged: prev.whaleDirection && current.whaleDirection !== prev.whaleDirection
+    whaleDirectionChanged: prev.whaleDirection && current.whaleDirection !== prev.whaleDirection,
+    verdictChanged: prev.verdict && current.verdict !== prev.verdict,
+    gateChanged: prev.gate && current.gate !== prev.gate
   };
   const alerts = [];
   let points = 0, severity = 0;
@@ -153,10 +159,13 @@ export function riskDeltaEngine(p, snapshots) {
   if (deltas.ownerOutPct >= 3) add(deltas.ownerOutPct >= 10 ? 'danger' : 'warn', 'Owner outflow appeared', `Owner/deployer outbound flow rose +${deltas.ownerOutPct.toFixed(1)}%.`, deltas.ownerOutPct >= 10 ? 2 : 1);
   if (deltas.burstScore >= 25) add('warn', 'Transfer burst increased', `Burst score rose +${deltas.burstScore.toFixed(0)}.`, 1);
   if (deltas.whaleDirectionChanged) add(current.whaleDirection === 'Owner Distribution' ? 'danger' : 'warn', 'Whale direction changed', `${prev.whaleDirection} → ${current.whaleDirection}.`, 1);
+  if (deltas.verdictChanged) add(['High Risk','Avoid','Insufficient Data'].includes(current.verdict) ? 'danger' : 'warn', 'Verdict changed', `${prev.verdict || 'Unknown'} → ${current.verdict || 'Unknown'}.`, 2);
+  if (deltas.gateChanged) add(['High Risk','Avoid'].includes(current.gate) ? 'danger' : 'warn', 'Decision gate changed', `${prev.gate || 'Unknown'} → ${current.gate || 'Unknown'}.`, 2);
   if (!alerts.length) alerts.push({ level: 'neutral', label: 'No major delta', detail: 'No large token-health shift detected since last snapshot.' });
-  const status = severity >= 5 || points <= -5 ? 'High Risk Shift' : points >= 3 ? 'Improving' : points <= -3 ? 'Deteriorating' : points > 0 ? 'Stable / Improving' : points < 0 ? 'Weakening' : 'Stable';
-  const level = status === 'Improving' || status === 'Stable / Improving' ? 'good' : status === 'High Risk Shift' || status === 'Deteriorating' || status === 'Weakening' ? 'danger' : 'warn';
-  const summary = `Score ${deltas.score >= 0 ? '+' : ''}${deltas.score}, liquidity ${deltas.liquidityPct===null?'N/A':`${deltas.liquidityPct.toFixed(1)}%`}, top10 ${deltas.top10Pct >= 0 ? '+' : ''}${deltas.top10Pct.toFixed(1)}%, whale ${deltas.whaleDirectionChanged ? `${prev.whaleDirection} → ${current.whaleDirection}` : current.whaleDirection}.`;
+  let status = severity >= 5 || points <= -5 ? 'Risk Spike' : points >= 3 ? 'Improving' : points <= -3 ? 'Weakening' : points > 0 ? 'Stable / Improving' : points < 0 ? 'Weakening' : 'Stable';
+  if (current.whaleDirection === 'Owner Distribution' && (deltas.ownerOutPct >= 3 || deltas.whaleDirectionChanged)) status = 'Distribution Alert';
+  const level = status === 'Improving' || status === 'Stable / Improving' ? 'good' : status === 'Risk Spike' || status === 'Distribution Alert' || status === 'Weakening' ? 'danger' : 'warn';
+  const summary = `Score ${deltas.score >= 0 ? '+' : ''}${deltas.score}, confidence ${deltas.confidence >= 0 ? '+' : ''}${deltas.confidence}, liquidity ${deltas.liquidityPct===null?'N/A':`${deltas.liquidityPct.toFixed(1)}%`}, top10 ${deltas.top10Pct >= 0 ? '+' : ''}${deltas.top10Pct.toFixed(1)}%, verdict ${deltas.verdictChanged ? `${prev.verdict || 'Unknown'} → ${current.verdict || 'Unknown'}` : current.verdict || 'Unknown'}.`;
   return { status, level, severity, history, current, prev, deltas, alerts, summary };
 }
 export function trendFor(p, snapshots) {
@@ -1166,12 +1175,12 @@ export function evidenceSummary(p) {
   return { intelligence, checks, positives, risks, missing, penalties, recommendation };
 }
 
-export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights }) {
-  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) }));
+export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) }));
   return {
     version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner) },
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), delta: riskDeltaEngine(winner, snapshots) },
     ranking,
     agentKernels: kernels,
     consensus,
@@ -1209,6 +1218,13 @@ export function reportMarkdown(data) {
   lines.push(`## Decision Gate / Penalty Breakdown`);
   lines.push(`Gate: **${intel?.gate || 'Safe to Watch'}** · Penalty: **-${Math.round(intel?.penalty || 0)}** · Raw score: **${intel?.rawScore ?? data.winner.final}/100**`);
   (summary?.penalties?.length ? summary.penalties : ['No major gate penalty applied.']).forEach(x => lines.push(`- ${x}`));
+  lines.push(``);
+  lines.push(`## Re-scan Intelligence`);
+  const delta = data.winner.delta || data.ranking[0]?.delta;
+  if (delta?.prev) {
+    lines.push(`Status: **${delta.status}** — ${delta.summary}`);
+    delta.alerts.slice(0, 6).forEach(a => lines.push(`- ${a.level.toUpperCase()}: ${a.label} — ${a.detail}`));
+  } else lines.push(`- New token snapshot. Re-scan later to compare score, confidence, liquidity, holder concentration, whale flow, verdict, and decision gate changes.`);
   lines.push(``);
   lines.push(`## Missing Data / Skipped Scans`);
   const missing = summary?.missing?.length ? summary.missing : [];

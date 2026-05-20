@@ -61,7 +61,7 @@ function App() {
   const tasks = useMemo(() => agentTasks(projects, ranked, trends), [projects, ranked, trends]);
   const backtest = useMemo(() => predictionStats(predictions, ranked), [predictions, ranked]);
   const scenarioResult = useMemo(() => scenarioAnalysis(winner, ranked[1], scenario), [winner, ranked, scenario]);
-  const reportData = useMemo(() => buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights }), [ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights]);
+  const reportData = useMemo(() => buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots }), [ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots]);
   const winnerQuality = dataQuality(winner);
   const winnerIntelV2 = useMemo(() => tokenIntelligence(winner), [winner]);
   const caption = useMemo(() => makeCaption(winner, winnerIntel), [winner, winnerIntel]);
@@ -442,9 +442,19 @@ function App() {
           try { next.farcasterScan = await fetchFarcasterScan(query, neynarKey.trim()); next.socialKeyword = next.socialKeyword || query; } catch (err) { notes.push(`Farcaster: ${err.message || 'failed'}`); }
         }
       } else notes.push('Neynar key missing: Farcaster skipped');
+      const scoredNext = { ...next, scores: scoreProject(next) };
+      const id = projectId(scoredNext);
+      let delta = null;
+      if (id) {
+        delta = riskDeltaEngine(scoredNext, snapshots);
+        const snap = compactSnapshot(scoredNext);
+        const nextSnapshots = { ...snapshots, [id]: [...(snapshots[id] || []), snap].slice(-20) };
+        setSnapshots(nextSnapshots);
+        writeSnapshots(nextSnapshots);
+      }
       setProjects(ps => ps.map((p, idx) => idx === i ? { ...p, ...next } : p));
-      const intel = tokenIntelligence({ ...next, scores: scoreProject(next) });
-      setAnalyzeStatus(st => ({ ...st, [i]: `Analyze complete · ${intel.label} · ${intel.score}/100 · ${intel.confidence}% confidence${notes.length ? ` · ${notes.slice(0, 2).join('; ')}` : ''}` }));
+      const intel = tokenIntelligence(scoredNext);
+      setAnalyzeStatus(st => ({ ...st, [i]: `Analyze complete · ${intel.label} · ${intel.score}/100 · ${intel.confidence}% confidence${delta?.prev ? ` · ${delta.status}: ${delta.summary}` : ' · snapshot saved'}${notes.length ? ` · ${notes.slice(0, 2).join('; ')}` : ''}` }));
     } catch (err) {
       setAnalyzeStatus(st => ({ ...st, [i]: err.message || 'Analyze failed.' }));
     }
