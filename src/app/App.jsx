@@ -429,42 +429,58 @@ function App() {
       <div className="panel controls">
         <div className="panel-head"><h2>Battle Setup</h2><button onClick={addProject}>+ Add</button></div>
         <label>Battle title<input value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
-        {projects.map((p,i)=><div className="project-form" key={i}>
-          <div className="import-row">
-            <input value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" />
-            <button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
+        {projects.map((p,i)=><details className="project-form" key={i} open>
+          <summary className="project-summary">
+            <span><b>{p.symbol ? `$${p.symbol}` : p.name || `Project ${i+1}`}</b><small>{p.contract ? shortAddr(p.contract) : 'Add Base contract or repo'}</small></span>
+            <em>{Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0)}/100</em>
+          </summary>
+          <div className="setup-block priority-block">
+            <div className="setup-block-head"><b>1. Quick import</b><span>Fastest path: paste Base contract, then import market/security data.</span></div>
+            <div className="import-row">
+              <input value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" />
+              <button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
+            </div>
+            {imports[i] && imports[i] !== 'loading' && <p className={imports[i].startsWith('Imported') ? 'status ok' : 'status'}>{imports[i]}</p>}
+            {marketStatus[i] && marketStatus[i] !== 'loading' && <p className={marketStatus[i].includes('complete') ? 'status ok' : 'status'}>{marketStatus[i]}</p>}
+            <div className="import-row repo-row"><input value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" /><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}>{repoImports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Code2 size={17}/>} Repo</button></div>
+            {repoImports[i] && repoImports[i] !== 'loading' && <p className={repoImports[i].startsWith('Imported') ? 'status ok' : 'status'}>{repoImports[i]}</p>}
           </div>
-          {imports[i] && imports[i] !== 'loading' && <p className={imports[i].startsWith('Imported') ? 'status ok' : 'status'}>{imports[i]}</p>}
-          {marketStatus[i] && marketStatus[i] !== 'loading' && <p className={marketStatus[i].includes('complete') ? 'status ok' : 'status'}>{marketStatus[i]}</p>}
-          <button className="security-button" onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}>{securityStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <LockKeyhole size={16}/>} Security Scan</button>
-          {securityStatus[i] && securityStatus[i] !== 'loading' && <p className={securityStatus[i].includes('complete') ? 'status ok' : 'status'}>{securityStatus[i]}</p>}
-          <button className="security-button" onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}>{holderStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <Coins size={16}/>} Holder Scan</button>
-          {holderStatus[i] && holderStatus[i] !== 'loading' && <p className={holderStatus[i].includes('complete') ? 'status ok' : 'status'}>{holderStatus[i]}</p>}
-          <div className="import-row repo-row"><button onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}>{whaleFlowStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Coins size={17}/>} Whale Flow</button><button onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}>{farcasterStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Sparkles size={17}/>} Farcaster</button></div>
-          {whaleFlowStatus[i] && whaleFlowStatus[i] !== 'loading' && <p className={whaleFlowStatus[i].includes('complete') ? 'status ok' : 'status'}>{whaleFlowStatus[i]}</p>}
-          {farcasterStatus[i] && farcasterStatus[i] !== 'loading' && <p className={farcasterStatus[i].includes('complete') ? 'status ok' : 'status'}>{farcasterStatus[i]}</p>}
-          <div className="import-row repo-row"><input value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}>{deployerStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <ShieldAlert size={17}/>} Deployer</button></div>
-          {deployerStatus[i] && deployerStatus[i] !== 'loading' && <p className={deployerStatus[i].includes('complete') ? 'status ok' : 'status'}>{deployerStatus[i]}</p>}
-          <input value={p.name} onChange={e=>update(i,'name',e.target.value)} placeholder="Base token/project name" />
-          <div className="import-row repo-row">
-            <input value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" />
-            <button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}>{repoImports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Code2 size={17}/>} Repo</button>
-          </div>
-          {repoImports[i] && repoImports[i] !== 'loading' && <p className={repoImports[i].startsWith('Imported') ? 'status ok' : 'status'}>{repoImports[i]}</p>}
+
+          <details className="setup-block" open>
+            <summary className="setup-block-head"><b>2. Verification scans</b><span>Run only what you have keys/data for.</span></summary>
+            <div className="scan-toolbar">
+              <button className="security-button" onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}>{securityStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <LockKeyhole size={16}/>} Security Scan</button>
+              <button className="security-button" onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}>{holderStatus[i] === 'loading' ? <Loader2 size={16} className="spin"/> : <Coins size={16}/>} Holder Scan</button>
+              <button className="security-button" onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}>{whaleFlowStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Coins size={17}/>} Whale Flow</button>
+              <button className="security-button" onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}>{farcasterStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Sparkles size={17}/>} Farcaster</button>
+            </div>
+            {securityStatus[i] && securityStatus[i] !== 'loading' && <p className={securityStatus[i].includes('complete') ? 'status ok' : 'status'}>{securityStatus[i]}</p>}
+            {holderStatus[i] && holderStatus[i] !== 'loading' && <p className={holderStatus[i].includes('complete') ? 'status ok' : 'status'}>{holderStatus[i]}</p>}
+            {whaleFlowStatus[i] && whaleFlowStatus[i] !== 'loading' && <p className={whaleFlowStatus[i].includes('complete') ? 'status ok' : 'status'}>{whaleFlowStatus[i]}</p>}
+            {farcasterStatus[i] && farcasterStatus[i] !== 'loading' && <p className={farcasterStatus[i].includes('complete') ? 'status ok' : 'status'}>{farcasterStatus[i]}</p>}
+            <div className="import-row repo-row"><input value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}>{deployerStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <ShieldAlert size={17}/>} Deployer</button></div>
+            {deployerStatus[i] && deployerStatus[i] !== 'loading' && <p className={deployerStatus[i].includes('complete') ? 'status ok' : 'status'}>{deployerStatus[i]}</p>}
+          </details>
+
+          <details className="setup-block" open>
+            <summary className="setup-block-head"><b>3. Manual tuning</b><span>Optional fields for demos, missing APIs, or edge cases.</span></summary>
+            <input value={p.name} onChange={e=>update(i,'name',e.target.value)} placeholder="Base token/project name" />
+            <div className="mini-grid">
+              <label>Stars<input type="number" value={p.stars} onChange={e=>update(i,'stars',+e.target.value)} /></label>
+              <label>Commits<input type="number" value={p.commits} onChange={e=>update(i,'commits',+e.target.value)} /></label>
+              <label>Forks<input type="number" value={p.forks || 0} onChange={e=>update(i,'forks',+e.target.value)} /></label>
+              <label>Volume<input type="number" value={p.volume} onChange={e=>update(i,'volume',+e.target.value)} /></label>
+              <label>Liquidity<input type="number" value={p.liquidity} onChange={e=>update(i,'liquidity',+e.target.value)} /></label>
+              <label>Mentions<input type="number" value={p.mentions} onChange={e=>update(i,'mentions',+e.target.value)} /></label>
+              <label>Issues<input type="number" value={p.openIssues || 0} onChange={e=>update(i,'openIssues',+e.target.value)} /></label>
+              <label>Risk<input type="number" value={p.risk} onChange={e=>update(i,'risk',+e.target.value)} /></label>
+            </div>
+          </details>
+
           <div className="market-strip">
             <span>{p.symbol || 'TOKEN'}</span><b>{money(p.price, 4)}</b><span>{money(p.marketCap)} cap</span>{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}
           </div>
-          <div className="mini-grid">
-            <label>Stars<input type="number" value={p.stars} onChange={e=>update(i,'stars',+e.target.value)} /></label>
-            <label>Commits<input type="number" value={p.commits} onChange={e=>update(i,'commits',+e.target.value)} /></label>
-            <label>Forks<input type="number" value={p.forks || 0} onChange={e=>update(i,'forks',+e.target.value)} /></label>
-            <label>Volume<input type="number" value={p.volume} onChange={e=>update(i,'volume',+e.target.value)} /></label>
-            <label>Liquidity<input type="number" value={p.liquidity} onChange={e=>update(i,'liquidity',+e.target.value)} /></label>
-            <label>Mentions<input type="number" value={p.mentions} onChange={e=>update(i,'mentions',+e.target.value)} /></label>
-            <label>Issues<input type="number" value={p.openIssues || 0} onChange={e=>update(i,'openIssues',+e.target.value)} /></label>
-            <label>Risk<input type="number" value={p.risk} onChange={e=>update(i,'risk',+e.target.value)} /></label>
-          </div>
-        </div>)}
+        </details>)}
       </div>
 
       <div className="panel card-panel">
