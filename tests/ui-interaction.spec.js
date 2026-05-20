@@ -25,8 +25,8 @@ test.afterEach(async () => {
 test('loads dashboard, edits battle, saves memory, exports reports', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /AgentArena/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Battle Setup' })).toBeVisible();
-  await expect(page.getByText('Source Reliability')).toBeVisible();
-  await expect(page.getByText('Evidence Graph + Contradiction Detector')).toBeVisible();
+  await expect(page.getByText('Quick import').first()).toBeVisible();
+  await expect(page.getByText('Agent Report Export Pack')).toBeVisible();
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
   await page.getByRole('button', { name: /^\+ Add$/ }).click();
@@ -39,12 +39,6 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
 
   await page.getByRole('button', { name: /Save Battle/i }).first().click();
   await expect(page.getByText('Battle saved locally.')).toBeVisible();
-
-  await page.getByRole('button', { name: /Save Snapshot/i }).click();
-  await expect(page.getByText(/Saved \d+ token snapshots/)).toBeVisible();
-
-  await page.getByRole('button', { name: /Save Predictions/i }).click();
-  await expect(page.getByText(/Saved \d+ prediction records/)).toBeVisible();
 
   const downloads = [];
   page.on('download', d => downloads.push(d));
@@ -75,30 +69,11 @@ test('invalid external scans show useful status instead of crashing', async ({ p
   await expect(page.getByText('Add Neynar API key first.').first()).toBeVisible();
 });
 
-test('strategy simulator, weight presets, saved battles and report sections remain interactive', async ({ page }) => {
-  await page.getByText('Strategy Simulator').scrollIntoViewIfNeeded();
-  const volume = page.locator('input[type="range"]').first();
-  await volume.fill('2');
-  await expect(page.getByText(/agent changes|No major agent vote/).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Reset Scenario' }).click();
-
-  const weightsPanel = page.locator('.weights-panel');
-  await weightsPanel.scrollIntoViewIfNeeded();
-  await weightsPanel.getByRole('button', { name: 'Builder' }).click();
-  await expect(weightsPanel.getByRole('button', { name: 'Builder' })).toHaveClass(/active/);
-  await weightsPanel.getByRole('button', { name: 'Reset' }).click();
-
+test('core export section remains interactive in simplified UI', async ({ page }) => {
   await page.getByText('Agent Report Export Pack').scrollIntoViewIfNeeded();
   await expect(page.getByText(/Export the full agent analysis/)).toBeVisible();
-  await expect(page.getByText(/tasks/i).first()).toBeVisible();
-
-  const savedBattlesPanel = page.locator('.history-panel');
-  await savedBattlesPanel.scrollIntoViewIfNeeded();
-  await savedBattlesPanel.getByRole('button', { name: /^Save$/ }).click();
+  await page.getByRole('button', { name: /^Save$/ }).click();
   await expect(page.getByText('Battle saved locally.')).toBeVisible();
-  await expect(page.locator('.history-item').first()).toBeVisible();
-  await page.locator('.history-item').first().click();
-  await expect(page.getByText(/Loaded /)).toBeVisible();
 });
 
 test('downloaded report files are valid and do not contain broken placeholders', async ({ page }) => {

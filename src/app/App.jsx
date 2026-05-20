@@ -427,7 +427,7 @@ function App() {
       {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
     </section>
 
-    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Setup</a><a href="#report">Report</a><a href="#quality">Reliability</a><a href="#tools">Tools</a><a href="#agents">Agents</a></section>
+    <section className="quick-nav" aria-label="Page sections"><a href="#arena">Setup</a><a href="#export">Export</a></section>
 
     <section className="grid" id="arena">
       <div className="panel controls">
@@ -519,103 +519,7 @@ function App() {
 
 
 
-    <section className="token-report-panel panel" id="report">
-      <div className="panel-head"><h2>Full Token Reports</h2><span className="base-chip">all contenders</span></div>
-      <div className="token-report-grid">{ranked.map((p, rank) => { const report = tokenReport(p, rank); return <article className="token-report-card" key={`${p.name}-token-report`}>
-        <div className="token-report-top"><div><small>#{report.rank}</small><h3>{p.symbol ? `$${p.symbol}` : p.name}</h3><span>{p.name}</span></div><b>{Math.round(p.scores.adjustedFinal ?? p.scores.final)}/100</b></div>
-        <div className="token-report-meta"><span>Raw <b>{Math.round(p.scores.final)}</b></span><span>Reliability <b>{p.scores.reliabilityBadge || 'N/A'}</b></span><span>Confidence <b>{Math.round(p.scores.confidence)}%</b></span><span>Data <b>{report.quality.completeness}%</b></span></div>
-        <p>{report.verdict}</p>
-        {report.topRisk && <div className={`mini-risk ${report.topRisk.level}`}><b>{report.topRisk.label}</b><span>{report.topRisk.detail}</span></div>}
-      </article> })}</div>
-    </section>
-
-
-    <section className="reliability-panel panel" id="quality">
-      <div className="panel-head"><h2>Source Reliability + Adjusted Scoring</h2><span className="base-chip">verified score guard</span></div>
-      <div className="source-grid">{ranked.map((p) => { const rel = sourceReliability(p); const adj = adjustedScore(p); return <article className="source-card" key={`${p.name}-reliability`}>
-        <div className="source-title"><div><h3>{p.symbol ? `$${p.symbol}` : p.name}</h3><small>{rel.badge}</small></div><b>{Math.round(adj.adjustedFinal)}/100</b></div>
-        <div className="risk-metrics"><span>Raw <b>{Math.round(adj.rawFinal)}</b></span><span>Haircut <b>-{adj.haircut.toFixed(1)}</b></span><span>Reliability <b>{rel.score}%</b></span><span>Critical missing <b>{rel.criticalMissing}</b></span></div>
-        <div className="risk-flags">{rel.flags.map(flag => <div className={`flag ${flag.level}`} key={flag.label}><b>{flag.label}</b><span>{flag.detail}</span></div>)}</div>
-        <div className="source-list">{rel.sources.slice(0,8).map(src => <div className={`source-row ${src.confidence.toLowerCase()}`} key={src.id}><span>{src.category}</span><b>{src.status}</b><small>{src.reliability}%</small><em>{src.detail}</em></div>)}</div>
-      </article> })}</div>
-    </section>
-
-    <section className="freshness-panel panel">
-      <div className="panel-head"><h2>GitHub Freshness v2</h2><span className="base-chip">builder activity</span></div>
-      <div className="freshness-grid">{ranked.map((p) => { const f = githubFreshness(p); return <article className="fresh-card" key={`${p.name}-fresh`}>
-        <div className="fresh-head"><div><h3>{p.name}</h3><small>{p.repo || 'No repo'}</small></div><span className={f.level}>{f.badge}</span></div>
-        <div className="risk-metrics">
-          <span>Last push <b>{f.pushedDays !== null ? `${Math.round(f.pushedDays)}d` : 'N/A'}</b></span>
-          <span>Repo age <b>{f.createdDays !== null ? `${Math.round(f.createdDays)}d` : 'N/A'}</b></span>
-          <span>Fork ratio <b>{f.forkRatio ? `${(f.forkRatio*100).toFixed(1)}%` : 'N/A'}</b></span>
-          <span>Issue load <b>{f.issueLoad ? `${(f.issueLoad*100).toFixed(1)}%` : 'N/A'}</b></span>
-        </div>
-        <div className="risk-flags">{f.flags.map(flag=><div className={`flag ${flag.level}`} key={flag.label}><b>{flag.label}</b><span>{flag.detail}</span></div>)}</div>
-      </article> })}</div>
-    </section>
-
-
-
-
-
-
-
-    <section className="sim-panel panel" id="tools">
-      <div className="panel-head"><h2>Strategy Simulator</h2><button onClick={resetScenario}>Reset Scenario</button></div>
-      <div className="sim-grid">
-        <label>Volume x<b>{scenario.volumeMultiplier}x</b><input type="range" min="0.1" max="4" step="0.1" value={scenario.volumeMultiplier} onChange={e=>updateScenario('volumeMultiplier', Number(e.target.value))}/></label>
-        <label>Liquidity x<b>{scenario.liquidityMultiplier}x</b><input type="range" min="0.1" max="4" step="0.1" value={scenario.liquidityMultiplier} onChange={e=>updateScenario('liquidityMultiplier', Number(e.target.value))}/></label>
-        <label>Mentions x<b>{scenario.mentionsMultiplier}x</b><input type="range" min="0.1" max="5" step="0.1" value={scenario.mentionsMultiplier} onChange={e=>updateScenario('mentionsMultiplier', Number(e.target.value))}/></label>
-        <label>24h move delta<b>{scenario.priceMoveDelta}%</b><input type="range" min="-80" max="120" step="5" value={scenario.priceMoveDelta} onChange={e=>updateScenario('priceMoveDelta', Number(e.target.value))}/></label>
-        <label>Risk delta<b>{scenario.riskDelta}</b><input type="range" min="-50" max="50" step="5" value={scenario.riskDelta} onChange={e=>updateScenario('riskDelta', Number(e.target.value))}/></label>
-        <label>LP status<select value={scenario.lpStatus} onChange={e=>updateScenario('lpStatus', e.target.value)}><option value="same">same</option><option value="locked">locked</option><option value="burned">burned</option><option value="unlocked">unlocked</option><option value="unknown">unknown</option></select></label>
-        <label className="sim-check"><input type="checkbox" checked={scenario.socialBoost} onChange={e=>updateScenario('socialBoost', e.target.checked)}/> Social boost</label>
-      </div>
-      <div className="sim-result">
-        <article><small>Current</small><h3>{consensus.label}</h3><b>{Math.round(winner.scores.final)}/100</b></article>
-        <article><small>Simulated</small><h3>{scenarioResult.simulatedConsensus.label}</h3><b>{Math.round(scenarioResult.simulated.scores.final)}/100</b></article>
-        <article><small>Delta</small><h3>{scenarioResult.simulated.scores.final - winner.scores.final >= 0 ? '+' : ''}{Math.round(scenarioResult.simulated.scores.final - winner.scores.final)}</h3><b>{scenarioResult.changes.length} agent changes</b></article>
-      </div>
-      <div className="scenario-changes">{scenarioResult.changes.length ? scenarioResult.changes.map(c => <div key={c.agent}><b>{c.agent}</b><span>{c.from} → {c.to}</span><em>{c.scoreDelta >= 0 ? '+' : ''}{c.scoreDelta.toFixed(1)} score</em></div>) : <p>No major agent vote/score changes under this scenario.</p>}</div>
-    </section>
-
-    <section className="weights-panel panel">
-      <div className="panel-head"><h2>Agent Weights Studio</h2><span className="base-chip">{weights.preset}</span></div>
-      <div className="preset-row">{Object.keys(WEIGHT_PRESETS).map(name => <button key={name} onClick={()=>applyPreset(name)} className={weights.preset===name?'active':''}>{name}</button>)}<button onClick={resetWeights}>Reset</button></div>
-      <div className="weights-grid">
-        <article><h3>Score Weights</h3>{Object.entries(weights.score).map(([k,v]) => <label key={k}>{k}<input type="range" min="0" max="60" value={v} onChange={e=>updateScoreWeight(k,e.target.value)} /><b>{v}%</b></label>)}</article>
-        <article><h3>Agent Vote Weights</h3>{Object.entries(weights.agents).map(([k,v]) => <label key={k}>{k.replace(' Agent','')}<input type="range" min="0.5" max="2" step="0.05" value={v} onChange={e=>updateAgentWeight(k,e.target.value)} /><b>{v}x</b></label>)}</article>
-        <article><h3>Risk Veto</h3><label>Risk confidence threshold<input type="range" min="50" max="95" value={weights.riskVeto} onChange={e=>updateRiskVeto(e.target.value)} /><b>{weights.riskVeto}%</b></label><p>When Risk Agent is Bearish above this confidence, consensus marks risk veto active.</p></article>
-      </div>
-    </section>
-
-    <section className="backtest-panel panel">
-      <div className="panel-head"><h2>Agent Backtesting</h2><div className="history-actions"><button onClick={savePredictions}><Save size={16}/> Save Predictions</button><button onClick={clearPredictions}><Trash2 size={16}/> Clear</button></div></div>
-      {predictionStatus && <p className="status ok">{predictionStatus}</p>}
-      <div className="accuracy-grid">{Object.entries(backtest.stats).map(([agent, stat]) => <article className="accuracy-card" key={agent}>
-        <h3>{agent}</h3><b>{stat.total ? `${stat.accuracy}%` : 'N/A'}</b><span>{stat.hits}/{stat.total} hits</span>
-      </article>)}</div>
-      <div className="prediction-list">{backtest.resolved.slice(-8).reverse().map(item => <div className={`prediction-row ${item.result.outcome.toLowerCase()}`} key={item.id}>
-        <span>{item.symbol ? `$${item.symbol}` : item.name}</span><b>{item.consensus}</b><em>{item.result.outcome} · score {item.result.scoreDelta >= 0 ? '+' : ''}{item.result.scoreDelta.toFixed(1)} · price {item.result.pricePct===null?'N/A':`${item.result.pricePct.toFixed(1)}%`}</em>
-      </div>)}</div>
-    </section>
-
-    <section className="memory-panel panel">
-      <div className="panel-head"><h2>Snapshot Compare v2 / Risk Delta Engine</h2><div className="history-actions"><button onClick={saveSnapshots}><Save size={16}/> Save Snapshot</button><button onClick={clearSnapshots}><Trash2 size={16}/> Clear Memory</button></div></div>
-      {memoryStatus && <p className="status ok">{memoryStatus}</p>}
-      <div className="memory-grid">{ranked.map((p) => { const t = trends[projectId(p)]; return <article className="memory-card" key={`${p.name}-memory`}>
-        <div className="memory-head"><div><h3>{p.symbol ? `$${p.symbol}` : p.name}</h3><small>{t.history.length} saved snapshots</small></div><span className={t.level}>{t.status}</span></div>
-        <p>{t.summary}</p>
-        {t.deltas && <div className="risk-metrics"><span>Score <b>{t.deltas.score >= 0 ? '+' : ''}{t.deltas.score}</b></span><span>Liquidity <b>{t.deltas.liquidityPct===null?'N/A':`${t.deltas.liquidityPct.toFixed(1)}%`}</b></span><span>Risk <b>{t.deltas.risk >= 0 ? '+' : ''}{t.deltas.risk}</b></span><span>Top10 <b>{t.deltas.top10Pct >= 0 ? '+' : ''}{t.deltas.top10Pct.toFixed(1)}%</b></span><span>Owner out <b>{t.deltas.ownerOutPct >= 0 ? '+' : ''}{t.deltas.ownerOutPct.toFixed(1)}%</b></span><span>Whale <b>{t.current.whaleDirection}</b></span></div>}
-        <div className="risk-flags">{(t.alerts || []).slice(0,4).map(flag => <div className={`flag ${flag.level}`} key={flag.label}><b>{flag.label}</b><span>{flag.detail}</span></div>)}</div>
-      </article> })}</div>
-    </section>
-
-
-
-
-
-    <section className="export-panel panel">
+    <section className="export-panel panel" id="export">
       <div className="panel-head"><h2>Agent Report Export Pack</h2><span className="base-chip">markdown + json</span></div>
       <div className="export-box">
         <div><h3>{winner.symbol ? `$${winner.symbol}` : winner.name} Battle Report</h3><p>Export the full agent analysis with ranking, evidence, source coverage, self-review, debate loop, tasks, backtesting stats, and strategy simulation.</p></div>
