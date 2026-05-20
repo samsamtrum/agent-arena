@@ -468,9 +468,9 @@ function App() {
 
 
 
-          <div className="market-strip">
-            <span>{p.symbol || 'TOKEN'}</span><b>{money(p.price, 4)}</b><span>{money(p.marketCap)} cap</span>{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}
-          </div>
+          {hasProjectData(p) && <div className="market-strip">
+            <span>{p.symbol || 'TOKEN'}</span>{p.price ? <b>{money(p.price, 4)}</b> : null}{p.marketCap ? <span>{money(p.marketCap)} cap</span> : null}{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}
+          </div>}
         </details>)}
       </div>
 
@@ -482,16 +482,18 @@ function App() {
           <div className="winner"><Trophy size={42}/><div><small>{hasBattleData ? 'AI Consensus Winner' : 'No sample data loaded'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'Import a Base token'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)} / 100` : 'Paste a Base contract or GitHub repo to start.'}</p></div></div>
           {hasBattleData ? <><div className="winner-stats"><span>{money(winner.marketCap)} market cap</span><span>{money(winner.volume)} 24h volume</span><span>{money(winner.liquidity)} liquidity</span><span>{num(winner.priceChange24h).toFixed(1)}% 24h</span><span>{Math.round(winner.scores.confidence)}% confidence</span><span>{winnerQuality.completeness}% complete</span></div>
           <div className="risk-mini">{winnerIntel.flags.slice(0,3).map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="empty-state"><b>Clean start</b><span>No demo tokens, no fake ranking, no example numbers.</span></div>}
-          <div className="score-radar">
-            {['builder','market','meme','safety'].map(k=><div className="radar-item" key={k}><strong>{Math.round(winner.scores[k])}</strong><span>{k}</span></div>)}
-          </div>
-          <div className="score-bars compact">
-            {['builder','market','meme','safety'].map(k=><div key={k}><span>{k}</span><b>{Math.round(winner.scores[k])}</b><div className="bar"><i style={{width:`${winner.scores[k]}%`}} /></div></div>)}
-          </div>
+          {hasBattleData && <>
+            <div className="score-radar">
+              {['builder','market','meme','safety'].map(k=><div className="radar-item" key={k}><strong>{Math.round(winner.scores[k])}</strong><span>{k}</span></div>)}
+            </div>
+            <div className="score-bars compact">
+              {['builder','market','meme','safety'].map(k=><div key={k}><span>{k}</span><b>{Math.round(winner.scores[k])}</b><div className="bar"><i style={{width:`${winner.scores[k]}%`}} /></div></div>)}
+            </div>
 
-          <div className="reason-stack">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span></div>)}</div>
-          {verdictData && <div className="card-verdict"><b>{verdictData.gap.toFixed(1)}pt gap</b><span>{verdictData.strongest} edge · {verdictData.upset} upset risk</span></div>}
-          <div className="ranking card-ranking">{ranked.slice(0,4).map((p,i)=><div className="rank" key={`${p.name}-${i}`}><span>#{i+1} {p.symbol ? `$${p.symbol}` : p.name}</span><b>{Math.round(p.scores.adjustedFinal ?? p.scores.final)}</b></div>)}</div>
+            <div className="reason-stack">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span></div>)}</div>
+            {verdictData && <div className="card-verdict"><b>{verdictData.gap.toFixed(1)}pt gap</b><span>{verdictData.strongest} edge · {verdictData.upset} upset risk</span></div>}
+            <div className="ranking card-ranking">{ranked.slice(0,4).map((p,i)=><div className="rank" key={`${p.name}-${i}`}><span>#{i+1} {p.symbol ? `$${p.symbol}` : p.name}</span><b>{Math.round(p.scores.adjustedFinal ?? p.scores.final)}</b></div>)}</div>
+          </>}
           <div className="card-cta"><span>Battle your Base token</span><b>agentarena.xyz</b></div>
         </div>
       </div>
