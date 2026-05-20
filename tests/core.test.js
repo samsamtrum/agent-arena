@@ -205,6 +205,15 @@ test('risk rule pack gates attractive scores when critical evidence is missing o
   assert.ok(riskyIntel.penaltyBreakdown.some(x => /Holder|Suspicious|Price/.test(x.label)));
 });
 
+test('liquidity exit risk classifies pool health and holder exit pressure', () => {
+  const healthy = core.liquidityExitRisk(baseProject);
+  const fragile = core.liquidityExitRisk({ ...baseProject, marketCap: 5_000_000, volume: 220_000, liquidity: 12_000, pairCreatedAt: Date.now() - 86400000, holders: { supply: 1000000, holderCount: 120, topHolders: [{ TokenHolderAddress: baseProject.deployerAddress, TokenHolderQuantity: 350000 }, { TokenHolderAddress: '0x6666666666666666666666666666666666666666', TokenHolderQuantity: 200000 }] } });
+  assert.ok(healthy.score > fragile.score);
+  assert.match(fragile.exitSafety, /Fragile|Exit trap/);
+  assert.ok(fragile.flags.some(f => /liquidity|FDV|holder|pool/i.test(f.label)));
+  assert.ok(fragile.top10ExitPressure > 1);
+});
+
 test('base contract deep risk classifies ownership privileges and tax matrix', () => {
   const risky = { ...baseProject, security: { owner_address: '0x5555555555555555555555555555555555555555', is_honeypot: '0', is_blacklisted: '1', can_take_back_ownership: '1', is_mintable: '1', is_proxy: '1', is_open_source: '0', buy_tax: '3', sell_tax: '12', transfer_tax: '1' } };
   const deep = core.contractDeepRisk(risky);
@@ -318,6 +327,9 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Verdict/);
   assert.match(md, /Evidence Summary/);
   assert.match(md, /Decision Gate \/ Penalty Breakdown/);
+  assert.match(md, /Liquidity Exit Risk \/ Pool Health/);
+  assert.match(md, /Exit safety/);
+  assert.match(md, /What would break this token first/);
   assert.match(md, /Base Contract Risk/);
   assert.match(md, /Ownership finality/);
   assert.match(md, /Tax matrix/);

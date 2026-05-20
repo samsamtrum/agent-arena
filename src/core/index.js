@@ -881,6 +881,50 @@ export async function fetchTokenSecurity(contract) {
   if (!security || !Object.keys(security).length) throw new Error('No security result returned');
   return security;
 }
+export function liquidityExitRisk(p) {
+  const liquidity = num(p.liquidity);
+  const volume = num(p.volume);
+  const fdv = num(p.marketCap);
+  const age = pairAgeDays(p);
+  const holders = holderIntel(p);
+  const top10Pct = num(holders.top10Pct || p.holders?.top10Pct);
+  const top1Pct = num(holders.top1Pct || p.holders?.top1Pct);
+  const clusterPct = num(holders.distribution?.clusterRiskPct || holders.deployerPct);
+  const volToLiq = liquidity ? volume / liquidity : 0;
+  const fdvToLiq = liquidity ? fdv / liquidity : 0;
+  const top10ExitPressure = liquidity && fdv && top10Pct ? fdv * (top10Pct / 100) / liquidity : 0;
+  const top1ExitPressure = liquidity && fdv && top1Pct ? fdv * (top1Pct / 100) / liquidity : 0;
+  const clusterExitPressure = liquidity && fdv && clusterPct ? fdv * (clusterPct / 100) / liquidity : 0;
+  const flags = [];
+  const add = (level, label, detail, weight) => flags.push({ level, label, detail, weight });
+  if (!liquidity) add('danger', 'Liquidity missing', 'No pair liquidity is available, so exit safety cannot be trusted.', 30);
+  else if (liquidity < 15000) add('danger', 'Exit trap liquidity', `${money(liquidity)} liquidity is too thin for meaningful exits.`, 26);
+  else if (liquidity < 50000) add('warn', 'Fragile liquidity', `${money(liquidity)} liquidity can break under moderate sell pressure.`, 14);
+  else if (liquidity < 150000) add('warn', 'Early liquidity', `${money(liquidity)} liquidity is usable but not deep.`, 7);
+  else add('good', 'Deep enough liquidity', `${money(liquidity)} liquidity supports cleaner early exits.`, -10);
+  if (volToLiq > 3) add('danger', 'Extreme volume/liquidity', `${volToLiq.toFixed(2)}x volume/liquidity can indicate wash volume or unstable pool churn.`, 22);
+  else if (volToLiq > 1.5) add('warn', 'Hot volume/liquidity', `${volToLiq.toFixed(2)}x volume/liquidity can reverse fast if liquidity leaves.`, 10);
+  else if (volToLiq >= .25) add('good', 'Healthy volume/liquidity', `${volToLiq.toFixed(2)}x volume/liquidity shows activity without obvious overheating.`, -5);
+  else if (volume > 0) add('warn', 'Quiet liquidity usage', `${volToLiq.toFixed(2)}x volume/liquidity means trading proof is still light.`, 5);
+  if (fdvToLiq > 150) add('danger', 'Severe FDV/liquidity mismatch', `${fdvToLiq.toFixed(1)}x FDV/liquidity leaves little exit depth versus valuation.`, 24);
+  else if (fdvToLiq > 75) add('danger', 'Fragile FDV/liquidity', `${fdvToLiq.toFixed(1)}x FDV/liquidity can trap exits.`, 16);
+  else if (fdvToLiq > 35) add('warn', 'Stretched FDV/liquidity', `${fdvToLiq.toFixed(1)}x FDV/liquidity needs monitoring.`, 8);
+  else if (fdvToLiq > 0) add('good', 'Balanced FDV/liquidity', `${fdvToLiq.toFixed(1)}x FDV/liquidity is not extreme.`, -5);
+  if (age !== null && age < 2) add('warn', 'Very new pool', `Pair age is ${age.toFixed(1)} days; liquidity quality is not seasoned.`, 8);
+  else if (age !== null && age < 14) add('warn', 'Young pool', `Pair age is ${age.toFixed(1)} days; monitor whether liquidity sticks.`, 5);
+  else if (age !== null) add('good', 'Seasoned pool age', `Pair age is ${age.toFixed(1)} days.`, -4);
+  if (top10ExitPressure > 5) add('danger', 'Top holders overpower liquidity', `Top 10 holder value is about ${top10ExitPressure.toFixed(1)}x pool liquidity.`, 22);
+  else if (top10ExitPressure > 2) add('warn', 'Top holder exit pressure', `Top 10 holder value is about ${top10ExitPressure.toFixed(1)}x pool liquidity.`, 10);
+  if (top1ExitPressure > 2) add('danger', 'Single holder can break pool', `Top holder value is about ${top1ExitPressure.toFixed(1)}x pool liquidity.`, 18);
+  else if (top1ExitPressure > 1) add('warn', 'Single holder pressure', `Top holder value is about ${top1ExitPressure.toFixed(1)}x pool liquidity.`, 8);
+  if (clusterExitPressure > 2) add('danger', 'Owner/cluster exit pressure', `Owner/cluster exposure is about ${clusterExitPressure.toFixed(1)}x pool liquidity.`, 18);
+  const riskPoints = flags.reduce((s,f)=>s + (f.level === 'danger' ? (f.weight || 18) : f.level === 'warn' ? (f.weight || 8) : -(Math.abs(f.weight || 4))), 0);
+  const score = Math.round(clamp(94 - riskPoints, 3, 98));
+  const exitSafety = score >= 78 ? 'Deep enough' : score >= 58 ? 'Thin' : score >= 36 ? 'Fragile' : 'Exit trap';
+  const breakFirst = flags.find(f => f.level === 'danger')?.label || flags.find(f => f.level === 'warn')?.label || 'Liquidity monitoring';
+  return { available: liquidity > 0, score, exitSafety, poolHealth: score >= 78 ? 'Healthy' : score >= 58 ? 'Watch' : score >= 36 ? 'Fragile' : 'Dangerous', liquidity, volume, fdv, ageDays: age, volToLiq, fdvToLiq, top10Pct, top1Pct, top10ExitPressure, top1ExitPressure, clusterExitPressure, breakFirst, flags: flags.sort((a,b)=>(b.weight||0)-(a.weight||0)) };
+}
+
 export function getRiskIntel(p) {
   const liquidity = num(p.liquidity);
   const volume = num(p.volume);
@@ -1513,7 +1557,7 @@ export function evidenceSummary(p) {
   const penalties = (intelligence.penaltyBreakdown || []).map(r => `-${Math.round(r.penalty)}: ${r.label} — ${r.detail}`).slice(0, 6);
   const recommendation = intelligence.label === 'Safe to Watch' ? 'Watchlist candidate; continue monitoring liquidity, holder flow, and repo freshness.' : intelligence.label === 'Speculative' ? 'Speculative watch only; verify missing scans before sizing any decision.' : intelligence.label === 'High Risk' ? 'High-risk profile; investigate red flags before treating the token as credible.' : intelligence.label === 'Avoid' ? 'Avoid until core risks and source gaps improve.' : 'Insufficient evidence; import live data and run verification scans first.';
   const calibration = confidenceCalibration({ ...p, scores });
-  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), trace: verdictTrace(p), contract: contractDeepRisk(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
+  return { intelligence, checks, positives, risks, missing, penalties, calibration, readiness: scanReadiness(p), trace: verdictTrace(p), contract: contractDeepRisk(p), pool: liquidityExitRisk(p), identity: tokenIdentity(p), pairIntegrity: pairIntegrity(p), spoofWarnings: spoofWarnings(p), rugPattern: rugPatternDetector(p), adversarial: adversarialSimulation(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), recommendation };
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
@@ -1578,6 +1622,16 @@ export function reportMarkdown(data) {
     (readiness.nextBest?.length ? readiness.nextBest : [{ action: 'No critical scan action', reason: 'Core evidence is currently sufficient.', impact: 'Low', confidenceUnlock: 0, status: 'Ready' }]).slice(0, 3).forEach(a => lines.push(`- Next best scan: **${a.action}** — ${a.reason} · Impact: ${a.impact} · Unlock: ~${a.confidenceUnlock}% · Status: ${a.status}`));
     readiness.gaps.slice(0, 5).forEach(g => lines.push(`- Gap: ${g.status} ${g.name} — ${g.reason}`));
   } else lines.push(`- Scan readiness unavailable.`);
+  lines.push(``);
+  lines.push(`## Liquidity Exit Risk / Pool Health`);
+  const pool = summary?.pool || data.ranking[0]?.summary?.pool;
+  if (pool) {
+    lines.push(`Pool health: **${pool.poolHealth}** · Exit safety: **${pool.exitSafety}** · Score: **${pool.score}/100**`);
+    lines.push(`Liquidity depth: **${money(pool.liquidity)}** · Volume/liquidity: **${pool.volToLiq ? pool.volToLiq.toFixed(2) + 'x' : 'N/A'}** · FDV/liquidity: **${pool.fdvToLiq ? pool.fdvToLiq.toFixed(1) + 'x' : 'N/A'}**`);
+    lines.push(`Pair age: **${pool.ageDays === null ? 'Unknown' : pool.ageDays.toFixed(1) + ' days'}** · Top holder pressure: **${pool.top1ExitPressure ? pool.top1ExitPressure.toFixed(1) + 'x liquidity' : 'Unknown'}** · Top 10 pressure: **${pool.top10ExitPressure ? pool.top10ExitPressure.toFixed(1) + 'x liquidity' : 'Unknown'}**`);
+    lines.push(`What would break this token first: **${pool.breakFirst}**`);
+    pool.flags.slice(0, 7).forEach(f => lines.push(`- Pool flag: ${f.level.toUpperCase()} — ${f.label}: ${f.detail}`));
+  } else lines.push(`- Pool health unavailable. Import Base DEX pair/liquidity data first.`);
   lines.push(``);
   lines.push(`## Base Contract Risk`);
   const contract = summary?.contract || data.ranking[0]?.summary?.contract;

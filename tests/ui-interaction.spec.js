@@ -88,6 +88,8 @@ test('downloaded report files are valid and do not contain broken placeholders',
   expect(mdText).toContain('## Decision Gate / Penalty Breakdown');
   expect(mdText).toContain('## Token Identity / Pair Integrity');
   expect(mdText).toContain('Identity score:');
+  expect(mdText).toContain('## Liquidity Exit Risk / Pool Health');
+  expect(mdText).toContain('Exit safety:');
   expect(mdText).toContain('## Base Contract Risk');
   expect(mdText).toContain('Tax matrix:');
   expect(mdText).toContain('## Verdict Trace / Why This Result');
