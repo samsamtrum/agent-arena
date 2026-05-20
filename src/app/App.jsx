@@ -465,19 +465,20 @@ function App() {
       <div className="hero-copy">
         <div className="brand-row"><img src="/avatar-192.png" alt="AgentArena avatar" className="project-avatar"/><div className="badge"><Radio size={16}/> Base-only AI Token Intelligence</div></div>
         <h1>AgentArena</h1>
-        <p className="tagline">Score Base tokens with live DEX data, GitHub traction, security signals, and explainable agent consensus.</p>
-        <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Start Battle</a><a href="#report" className="btn"><TrendingUp size={18}/> View Report</a><button onClick={exportCard} className="btn"><Download size={18}/> Export Card</button><button onClick={saveBattle} className="btn"><Save size={18}/> Save Battle</button></div>
+        <p className="tagline">A production-grade Base token intelligence cockpit for contract risk, liquidity exits, holder pressure, market proof, and evidence-backed verdicts.</p>
+        <div className="hero-actions"><a href="#arena" className="btn primary"><Swords size={18}/> Analyze Token</a><a href="#export" className="btn"><Download size={18}/> Export Report</a><button onClick={saveBattle} className="btn ghost"><Save size={18}/> Save Snapshot</button></div>
+        <div className="trust-strip"><span>Base-only</span><span>No fake scans</span><span>Risk-gated verdicts</span><span>CI verified</span></div>
       </div>
       <div className="hero-dashboard" aria-label="AgentArena workflow summary">
-        <div><small>Step 1</small><b>Import</b><span>Base contract or GitHub repo</span></div>
-        <div><small>Step 2</small><b>Verify</b><span>Market, security, holders</span></div>
-        <div><small>Step 3</small><b>Decide</b><span>Consensus score + export</span></div>
+        <div><small>01</small><b>Import</b><span>Paste a Base contract or repo.</span></div>
+        <div><small>02</small><b>Verify</b><span>Run market, contract, holder, and social checks.</span></div>
+        <div><small>03</small><b>Decide</b><span>Export a clear evidence-backed risk report.</span></div>
       </div>
     </section>
 
 
-    <section className="bulk-panel panel">
-      <div className="panel-head"><h2>Bulk Base Import</h2><div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div></div>
+    <section className="bulk-panel panel glass-panel">
+      <div className="panel-head"><div><h2>Bulk Base Import</h2><p className="panel-kicker">Optional: build a full battle from multiple Base contracts.</p></div><div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div></div>
       <div className="holder-key-row"><input type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear</button></div><div className="holder-key-row"><input type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear</button></div>
       <textarea value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" />
       {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
@@ -486,8 +487,8 @@ function App() {
     <section className="quick-nav" aria-label="Page sections"><a href="#arena">Setup</a><a href="#export">Export</a></section>
 
     <section className="grid" id="arena">
-      <div className="panel controls">
-        <div className="panel-head"><h2>Battle Setup</h2><button onClick={addProject}>+ Add</button></div>
+      <div className="panel controls command-panel">
+        <div className="panel-head"><div><h2>Battle Setup</h2><p className="panel-kicker">Start with one Base contract. Add more only when comparing contenders.</p></div><button onClick={addProject}>+ Add</button></div>
         <label>Battle title<input value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
         {projects.map((p,i)=><details className="project-form" key={i} open>
           <summary className="project-summary">
@@ -531,7 +532,7 @@ function App() {
         </details>)}
       </div>
 
-      <div className="panel card-panel">
+      <div className="panel card-panel result-panel">
         <div id="share-card" className="share-card">
           <div className="card-glow" />
           <div className="card-top"><span><Zap size={18}/> {battleTitle}</span><span>AgentArena · Base</span></div>
@@ -565,8 +566,8 @@ function App() {
 
 
 
-    <section className="export-panel panel" id="export">
-      <div className="panel-head"><h2>Agent Report Export Pack</h2><span className="base-chip">markdown + json</span></div>
+    <section className="export-panel panel glass-panel" id="export">
+      <div className="panel-head"><div><h2>Agent Report Export Pack</h2><p className="panel-kicker">Shareable markdown and machine-readable JSON with evidence, gates, and gaps.</p></div><span className="base-chip">markdown + json</span></div>
       <div className="export-box">
         <div><h3>{winner.symbol ? `$${winner.symbol}` : winner.name} Battle Report</h3><p>Export the full agent analysis with ranking, evidence, source coverage, self-review, debate loop, tasks, backtesting stats, and strategy simulation.</p></div>
         <div className="export-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button></div>
