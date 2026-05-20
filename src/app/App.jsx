@@ -494,7 +494,7 @@ function App() {
     <section className="grid" id="arena">
       <div className="panel controls command-panel">
         <div className="panel-head"><div><h2>Battle Setup</h2><p className="panel-kicker">Analyze one Base token first. Paste a contract, run core checks, then export an evidence-backed verdict.</p></div><button onClick={addProject}>+ Add</button></div>
-        <label>Battle title<input value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
+        <label className="visible-field">Battle title<span className="field-hint">Name this analysis session</span><input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
         {projects.map((p,i)=><details className="project-form" key={i} open>
           <summary className="project-summary">
             <span><b>{p.symbol ? `$${p.symbol}` : p.name || `Project ${i+1}`}</b><small>{p.contract ? shortAddr(p.contract) : 'Add Base contract or repo'}</small></span>
@@ -503,13 +503,13 @@ function App() {
           <div className="setup-block priority-block">
             <div className="setup-block-head"><b>1. Quick import</b><span>Paste a Base contract. Analyze runs import, market, security, and available keyed scans.</span></div>
             <div className="import-row">
-              <input value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" />
+              <label className="visible-field field-inline"><span className="field-hint strong">Paste Base token contract</span><input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="Paste Base token contract" /></label>
               <button className="primary-action" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Zap size={17}/>} Analyze Token</button><button onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import</button><button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}>{marketStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <TrendingUp size={17}/>} Market</button>
             </div>
             {analyzeStatus[i] && analyzeStatus[i] !== 'loading' && <p className={analyzeStatus[i].includes('complete') ? 'status ok' : 'status'}>{analyzeStatus[i]}</p>}
             {imports[i] && imports[i] !== 'loading' && <p className={imports[i].startsWith('Imported') ? 'status ok' : 'status'}>{imports[i]}</p>}
             {marketStatus[i] && marketStatus[i] !== 'loading' && <p className={marketStatus[i].includes('complete') ? 'status ok' : 'status'}>{marketStatus[i]}</p>}
-            <div className="import-row repo-row"><input value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" /><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}>{repoImports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Code2 size={17}/>} Repo</button></div>
+            <div className="import-row repo-row"><label className="visible-field field-inline"><span className="field-hint strong">GitHub repo or URL</span><input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="GitHub repo or URL" /></label><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}>{repoImports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Code2 size={17}/>} Repo</button></div>
             {repoImports[i] && repoImports[i] !== 'loading' && <p className={repoImports[i].startsWith('Imported') ? 'status ok' : 'status'}>{repoImports[i]}</p>}
           </div>
 
@@ -525,7 +525,7 @@ function App() {
             {holderStatus[i] && holderStatus[i] !== 'loading' && <p className={holderStatus[i].includes('complete') ? 'status ok' : 'status'}>{holderStatus[i]}</p>}
             {whaleFlowStatus[i] && whaleFlowStatus[i] !== 'loading' && <p className={whaleFlowStatus[i].includes('complete') ? 'status ok' : 'status'}>{whaleFlowStatus[i]}</p>}
             {farcasterStatus[i] && farcasterStatus[i] !== 'loading' && <p className={farcasterStatus[i].includes('complete') ? 'status ok' : 'status'}>{farcasterStatus[i]}</p>}
-            <div className="import-row repo-row"><input value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}>{deployerStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <ShieldAlert size={17}/>} Deployer</button></div>
+            <div className="import-row repo-row"><label className="visible-field field-inline"><span className="field-hint strong">Optional deployer/owner address</span><input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}>{deployerStatus[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <ShieldAlert size={17}/>} Deployer</button></div>
             {deployerStatus[i] && deployerStatus[i] !== 'loading' && <p className={deployerStatus[i].includes('complete') ? 'status ok' : 'status'}>{deployerStatus[i]}</p>}
           </details>
 
@@ -585,12 +585,12 @@ function App() {
       <div className="panel-head"><div><h2>Advanced Sources</h2><p className="panel-kicker">Optional keys and bulk tools. Keep empty for a clean single-token scan.</p></div></div>
       <details className="advanced-drawer">
         <summary>API keys for deeper scans</summary>
-        <div className="holder-key-row"><input type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear</button></div>
-        <div className="holder-key-row"><input type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear</button></div>
+        <div className="holder-key-row"><label className="visible-field field-inline"><span className="field-hint strong">Optional BaseScan API key</span><input aria-label="Optional BaseScan API key" type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/></label><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear</button></div>
+        <div className="holder-key-row"><label className="visible-field field-inline"><span className="field-hint strong">Optional Neynar API key</span><input aria-label="Optional Neynar API key" type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/></label><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear</button></div>
       </details>
       <details className="advanced-drawer">
         <summary>Bulk battle import</summary>
-        <textarea value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" />
+        <label className="visible-field"><span className="field-hint strong">Paste Base contracts, one per line</span><textarea aria-label="Paste Base contracts one per line" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" /></label>
         <div className="bulk-actions"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}><TrendingUp size={17}/> Cross-check Market</button><button onClick={scanAllSecurity}><LockKeyhole size={17}/> Scan Security</button><button onClick={scanAllHolders}><Coins size={17}/> Scan Holders</button><button onClick={scanAllDeployers}><ShieldAlert size={17}/> Scan Deployers</button><button onClick={scanAllWhaleFlow}><Coins size={17}/> Whale Flow</button><button onClick={scanAllFarcaster}><Sparkles size={17}/> Farcaster</button></div>
         {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'status' : 'status ok'}>{bulkStatus}</p>}
       </details>
