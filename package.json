@@ -1,0 +1,49 @@
+{
+  "name": "agent-arena",
+  "version": "0.1.0",
+  "private": false,
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/core.test.js tests/external-failures.test.js",
+    "test:tool": "node tests/tool-audit.mjs",
+    "test:simulation": "node tests/output-simulation.mjs",
+    "test:deep": "node tests/deep-qa.mjs",
+    "test:external": "node tests/external-smoke.mjs",
+    "test:all": "npm run test:deep && npm run test:simulation && npm run test:tool && npm test && npm run build && npm run test:ui",
+    "test:ui": "playwright test"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "html-to-image": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "^8.0.13"
+  },
+  "description": "Base-only AI token battle dashboard for ranking Base projects by builder, market, narrative, risk, and confidence signals.",
+  "keywords": [
+    "base",
+    "web3",
+    "ai-agents",
+    "token-discovery",
+    "dexscreener",
+    "github",
+    "vite",
+    "react"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bentam/agent-arena.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bentam/agent-arena/issues"
+  },
+  "homepage": "https://github.com/bentam/agent-arena#readme",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}
