@@ -27,6 +27,7 @@ test('loads dashboard, edits battle, saves memory, exports reports', async ({ pa
   await expect(page.getByRole('heading', { name: 'Paste contracts and rank the battle' })).toBeVisible();
   await expect(page.getByText('Step 4')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Token leaderboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sentinel + evidence audit' })).toBeVisible();
 
   await page.getByLabel('Battle title').fill('UI QA Battle');
   await page.getByRole('button', { name: /^\+ Compare another token$/ }).click();
@@ -72,6 +73,9 @@ test('multi-contract entry shows ranking table and top one effect', async ({ pag
   await expect(page.locator('.leaderboard-row.top-one')).toHaveCount(1);
   await expect(page.locator('.winner-glow')).toBeVisible();
   await expect(page.getByText(/TOP 1 TOKEN/i)).toBeVisible();
+  await expect(page.getByText(/Agent Council v2/i)).toBeVisible();
+  await expect(page.getByText(/Risk Sentinel/i).first()).toBeVisible();
+  await expect(page.getByText(/Evidence Agent/i).first()).toBeVisible();
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {

@@ -111,6 +111,8 @@ test('consensus activates risk veto when Risk Agent is bearish with high confide
   const risk = kernels.find(k => k.name === 'Risk Agent');
   assert.equal(risk.vote, 'Bearish');
   assert.ok(consensus.riskVeto);
+  assert.ok(kernels.some(k => k.name === 'Risk Sentinel Agent'));
+  assert.ok(kernels.some(k => k.name === 'Evidence Agent'));
 });
 
 
@@ -349,6 +351,13 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Risk Cards/);
   assert.match(md, /Remediation Queue/);
   assert.match(md, /Analyst conclusion/);
+  assert.match(md, /Agent Sentinel \/ Evidence Audit/);
+  assert.match(md, /Sentinel:/);
+  assert.match(md, /Evidence audit:/);
   assert.match(md, /Evidence Trail/);
+  assert.ok(data.winner.sentinel);
+  assert.ok(data.winner.evidenceAudit);
+  assert.ok(data.agentKernels.some(k => k.name === 'Risk Sentinel Agent'));
+  assert.ok(data.agentKernels.some(k => k.name === 'Evidence Agent'));
   assert.doesNotThrow(() => JSON.stringify(data));
 });

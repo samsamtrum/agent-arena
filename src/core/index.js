@@ -15,6 +15,8 @@ export const agents = [
   { name: 'Risk Agent', icon: 'ShieldAlert', color: '#fb7185', focus: 'Base contract, holder, LP and rug signals' },
   { name: 'Meme Agent', icon: 'Sparkles', color: '#facc15', focus: 'narrative, shareability, social velocity' },
   { name: 'Whale Agent', icon: 'Coins', color: '#c084fc', focus: 'Base wallet flow and holder behavior' },
+  { name: 'Risk Sentinel Agent', icon: 'ShieldAlert', color: '#f43f5e', focus: 'hard veto checks for rug, LP, owner, holder and fake-volume traps' },
+  { name: 'Evidence Agent', icon: 'GitBranch', color: '#38bdf8', focus: 'source coverage, audit trail, confidence and missing evidence' },
   { name: 'Skeptic Agent', icon: 'Bot', color: '#94a3b8', focus: 'weak spots and fake hype detection' }
 ];
 
@@ -1296,19 +1298,60 @@ function scoreLabel(value) {
 }
 export const DEFAULT_WEIGHTS = {
   score: { builder: 26, market: 34, meme: 22, safety: 18 },
-  agents: { 'Builder Agent': 1.05, 'Trader Agent': 1.2, 'Risk Agent': 1.35, 'Meme Agent': .95, 'Whale Agent': 1, 'Skeptic Agent': 1.15 },
+  agents: { 'Builder Agent': 1.05, 'Trader Agent': 1.2, 'Risk Agent': 1.35, 'Meme Agent': .95, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.55, 'Evidence Agent': 1.25, 'Skeptic Agent': 1.15 },
   riskVeto: 70,
   preset: 'Balanced'
 };
 export const WEIGHT_PRESETS = {
   Balanced: DEFAULT_WEIGHTS,
-  Degen: { score: { builder: 16, market: 42, meme: 30, safety: 12 }, agents: { 'Builder Agent': .85, 'Trader Agent': 1.45, 'Risk Agent': .9, 'Meme Agent': 1.35, 'Whale Agent': 1.1, 'Skeptic Agent': .8 }, riskVeto: 82, preset: 'Degen' },
-  Safe: { score: { builder: 22, market: 24, meme: 12, safety: 42 }, agents: { 'Builder Agent': 1, 'Trader Agent': .9, 'Risk Agent': 1.7, 'Meme Agent': .65, 'Whale Agent': 1.15, 'Skeptic Agent': 1.5 }, riskVeto: 62, preset: 'Safe' },
-  Builder: { score: { builder: 44, market: 22, meme: 12, safety: 22 }, agents: { 'Builder Agent': 1.65, 'Trader Agent': .95, 'Risk Agent': 1.05, 'Meme Agent': .65, 'Whale Agent': .85, 'Skeptic Agent': 1.1 }, riskVeto: 70, preset: 'Builder' },
-  'Meme Hunter': { score: { builder: 14, market: 30, meme: 40, safety: 16 }, agents: { 'Builder Agent': .75, 'Trader Agent': 1.15, 'Risk Agent': 1, 'Meme Agent': 1.7, 'Whale Agent': 1, 'Skeptic Agent': .85 }, riskVeto: 78, preset: 'Meme Hunter' }
+  Degen: { score: { builder: 16, market: 42, meme: 30, safety: 12 }, agents: { 'Builder Agent': .85, 'Trader Agent': 1.45, 'Risk Agent': .9, 'Meme Agent': 1.35, 'Whale Agent': 1.1, 'Risk Sentinel Agent': 1.05, 'Evidence Agent': .9, 'Skeptic Agent': .8 }, riskVeto: 82, preset: 'Degen' },
+  Safe: { score: { builder: 22, market: 24, meme: 12, safety: 42 }, agents: { 'Builder Agent': 1, 'Trader Agent': .9, 'Risk Agent': 1.7, 'Meme Agent': .65, 'Whale Agent': 1.15, 'Risk Sentinel Agent': 1.9, 'Evidence Agent': 1.45, 'Skeptic Agent': 1.5 }, riskVeto: 62, preset: 'Safe' },
+  Builder: { score: { builder: 44, market: 22, meme: 12, safety: 22 }, agents: { 'Builder Agent': 1.65, 'Trader Agent': .95, 'Risk Agent': 1.05, 'Meme Agent': .65, 'Whale Agent': .85, 'Risk Sentinel Agent': 1.25, 'Evidence Agent': 1.35, 'Skeptic Agent': 1.1 }, riskVeto: 70, preset: 'Builder' },
+  'Meme Hunter': { score: { builder: 14, market: 30, meme: 40, safety: 16 }, agents: { 'Builder Agent': .75, 'Trader Agent': 1.15, 'Risk Agent': 1, 'Meme Agent': 1.7, 'Whale Agent': 1, 'Risk Sentinel Agent': 1.15, 'Evidence Agent': .95, 'Skeptic Agent': .85 }, riskVeto: 78, preset: 'Meme Hunter' }
 };
 export function readWeights() { try { return JSON.parse(localStorage.getItem(WEIGHTS_KEY) || 'null') || DEFAULT_WEIGHTS; } catch { return DEFAULT_WEIGHTS; } }
 export function normalizeScoreWeights(w) { const total = Object.values(w.score).reduce((a,b)=>a+num(b),0) || 100; return Object.fromEntries(Object.entries(w.score).map(([k,v])=>[k,num(v)/total])); }
+
+
+export function riskSentinel(p) {
+  const rules = riskRulePack(p);
+  const rug = rugPatternDetector(p);
+  const pair = pairIntegrity(p);
+  const exit = liquidityExitRisk(p);
+  const contract = contractDeepRisk(p);
+  const severe = [
+    ...rules.rules.filter(r => r.level === 'danger').map(r => ({ level: 'danger', label: r.label, detail: r.detail, penalty: r.penalty, source: 'Decision rule' })),
+    ...(rug.level === 'High' || rug.level === 'Critical' ? [{ level: 'danger', label: `${rug.level} pre-rug proximity`, detail: rug.summary, penalty: rug.level === 'Critical' ? 28 : 20, source: 'Adversarial simulation' }] : []),
+    ...(pair.score < 45 ? [{ level: 'danger', label: 'Pair integrity veto', detail: pair.flags.find(f => f.level === 'danger')?.detail || 'Token/pair identity is weak.', penalty: 18, source: 'Pair integrity' }] : []),
+    ...(exit.score < 45 ? [{ level: 'danger', label: 'Exit liquidity risk', detail: exit.flags.find(f => f.level !== 'good')?.detail || 'Liquidity/exit safety is weak.', penalty: 14, source: 'Liquidity exit risk' }] : []),
+    ...(contract.score < 45 ? [{ level: 'danger', label: 'Contract authority risk', detail: contract.flags.find(f => f.level === 'danger')?.detail || 'Ownership/tax authority is risky.', penalty: 18, source: 'Contract deep risk' }] : [])
+  ];
+  const warnings = [
+    ...rules.rules.filter(r => r.level === 'warn').map(r => ({ level: 'warn', label: r.label, detail: r.detail, penalty: r.penalty, source: 'Decision rule' })),
+    ...rug.flags.filter(f => f.level === 'warn').slice(0, 2).map(f => ({ ...f, penalty: 8, source: 'Adversarial simulation' })),
+    ...pair.flags.filter(f => f.level === 'warn').slice(0, 2).map(f => ({ ...f, penalty: 6, source: 'Pair integrity' })),
+    ...exit.flags.filter(f => f.level === 'warn').slice(0, 2).map(f => ({ ...f, penalty: 6, source: 'Liquidity exit risk' }))
+  ];
+  const totalPenalty = clamp(severe.reduce((s, x) => s + num(x.penalty), 0) + warnings.reduce((s, x) => s + num(x.penalty) * .55, 0), 0, 70);
+  const hardVeto = severe.length > 0 || rules.gate === 'Avoid' || rug.level === 'Critical';
+  const score = clamp(100 - totalPenalty - (rules.gate === 'High Risk' ? 12 : rules.gate === 'Avoid' ? 25 : 0));
+  const gate = hardVeto ? (rules.gate === 'Avoid' || rug.level === 'Critical' ? 'Avoid' : 'High Risk') : rules.gate;
+  const summary = hardVeto ? `${severe[0]?.label || gate} blocks a clean Top 1 verdict.` : warnings.length ? `${warnings[0].label} keeps the verdict provisional.` : 'No hard veto detected by sentinel rules.';
+  return { score, hardVeto, gate, totalPenalty: Math.round(totalPenalty), severe: severe.slice(0, 6), warnings: warnings.slice(0, 6), summary };
+}
+
+export function evidenceAudit(p) {
+  const trail = evidenceTrail(p);
+  const graph = evidenceGraph(p);
+  const reliability = sourceReliability(p);
+  const quality = dataQuality(p);
+  const readiness = scanReadiness(p);
+  const claims = trail.map(e => ({ claim: e.claim, source: e.source, value: e.value, level: e.level, confidence: e.level === 'good' ? 85 : e.level === 'neutral' ? 62 : e.level === 'warn' ? 42 : 18 }));
+  const supported = claims.filter(c => c.level === 'good' || c.level === 'neutral').length;
+  const weak = claims.filter(c => c.level === 'warn' || c.level === 'danger');
+  const score = clamp(reliability.score * .42 + quality.completeness * .35 + graph.coverage * .23 - weak.filter(c => c.level === 'danger').length * 2);
+  return { score: Math.round(score), reliability: reliability.score, badge: reliability.badge, completeness: quality.completeness, coverage: graph.coverage, supported, weak: weak.length, missingCritical: readiness.missingCritical, claims: claims.slice(0, 12), strongest: graph.strongest.slice(0, 5), risks: graph.risks.slice(0, 6), summary: `${supported}/${claims.length} evidence claims supported · ${quality.completeness}% complete · ${reliability.badge}` };
+}
 
 function voteFromScore(score, bearish = false) {
   if (bearish) return score >= 68 ? 'Bearish' : score >= 45 ? 'Neutral' : 'Bullish';
@@ -1325,42 +1368,57 @@ export function agentKernel(p, runner) {
   const lpDep = lpDeployerIntel(p);
   const marketCheck = marketCrossCheck(p);
   const weak = topWeakScore(s);
+  const sentinel = riskSentinel({ ...p, scores: s });
+  const audit = evidenceAudit({ ...p, scores: s });
+  const weights = globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS;
   const kernels = [
     {
-      name: 'Builder Agent', weight: (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).agents['Builder Agent'], score: s.builder, vote: voteFromScore(s.builder), confidence: clamp((s.confidence*.45)+(s.builder*.55)),
+      name: 'Builder Agent', weight: weights.agents['Builder Agent'], score: s.builder, vote: voteFromScore(s.builder), confidence: clamp((s.confidence*.45)+(s.builder*.55)),
       bullish: [p.repo && 'Repo attached', fresh.level === 'good' && `${fresh.badge} GitHub activity`, num(p.stars) >= 100 && 'Visible star traction', num(p.forks) > 0 && 'Fork interest'].filter(Boolean),
       bearish: [!p.repo && 'No repo evidence', fresh.level === 'warn' && 'Repo freshness is weakening', fresh.level === 'danger' && 'Abandoned repo risk', num(p.commits) < 20 && 'Thin commit history'].filter(Boolean),
       changeMind: 'Recent commits, clear roadmap, releases, and stronger fork activity would improve builder conviction.'
     },
     {
-      name: 'Trader Agent', weight: (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).agents['Trader Agent'], score: s.market, vote: voteFromScore(s.market), confidence: clamp((s.confidence*.4)+(s.market*.6)),
+      name: 'Trader Agent', weight: weights.agents['Trader Agent'], score: s.market, vote: voteFromScore(s.market), confidence: clamp((s.confidence*.4)+(s.market*.6)),
       bullish: [intel.volToLiq > .25 && 'Active volume/liquidity ratio', num(p.liquidity) >= 75000 && 'Usable liquidity base', num(p.volume) >= 25000 && 'Visible 24h DEX flow', num(p.priceChange24h) > 0 && 'Positive 24h momentum', trend.level === 'good' && `Trend: ${trend.status}`, marketCheck.available && marketCheck.score >= 75 && 'Market data cross-check is aligned'].filter(Boolean),
       bearish: [num(p.liquidity) < 15000 && 'Thin liquidity', intel.volToLiq > 1.5 && 'Flow may be overheated', trend.level === 'danger' && `Trend: ${trend.status}`, num(p.volume) < 5000 && 'Low 24h volume', marketCheck.available && marketCheck.score < 45 && 'Market source mismatch'].filter(Boolean),
       changeMind: 'Sustained volume for 48h with deeper liquidity would increase market conviction.'
     },
     {
-      name: 'Risk Agent', weight: (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).agents['Risk Agent'], score: s.safety, vote: s.safety <= 45 ? 'Bearish' : s.safety <= 68 ? 'Neutral' : 'Bullish', confidence: clamp((s.confidence*.35)+((100-s.safety)*.65)),
+      name: 'Risk Agent', weight: weights.agents['Risk Agent'], score: s.safety, vote: s.safety <= 45 ? 'Bearish' : s.safety <= 68 ? 'Neutral' : 'Bullish', confidence: clamp((s.confidence*.35)+((100-s.safety)*.65)),
       bullish: [sec.available && sec.score >= 70 && 'Security scan has no major contract flag', num(p.liquidity) >= 75000 && 'Liquidity is not extremely thin'].filter(Boolean),
       bearish: [...intel.flags.filter(f=>f.level!=='good').slice(0,4).map(f=>f.label), !sec.available && 'Contract security not scanned', lpDep.score < 50 && 'LP/deployer proof is weak'].filter(Boolean),
       changeMind: 'Renounced/safer ownership, lower tax, locked liquidity, and clean holder data would reduce risk veto.'
     },
     {
-      name: 'Meme Agent', weight: (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).agents['Meme Agent'], score: s.meme, vote: voteFromScore(s.meme), confidence: clamp((s.confidence*.35)+(s.meme*.65)),
+      name: 'Meme Agent', weight: weights.agents['Meme Agent'], score: s.meme, vote: voteFromScore(s.meme), confidence: clamp((s.confidence*.35)+(s.meme*.65)),
       bullish: [num(p.mentions) >= 50 && 'Narrative mentions are visible', social.score >= 70 && 'Social narrative package is strong', social.scan.count >= 8 && `Social scan: ${social.scan.velocity} velocity / ${social.scan.sentiment}`, num(p.priceChange24h) > 15 && '24h move is shareable', intel.txns > 100 && 'Transaction activity supports attention'].filter(Boolean),
       bearish: [num(p.mentions) < 20 && 'Narrative signal is light', social.score < 50 && 'Social proof is incomplete', social.scan.spamScore > 45 && 'Social sample looks spammy/repetitive', intel.txns < 30 && 'Low transaction attention'].filter(Boolean),
       changeMind: 'More social mentions, stronger token story, and sustained tx activity would improve meme conviction.'
     },
     {
-      name: 'Whale Agent', weight: (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).agents['Whale Agent'], score: clamp((s.market*.55)+(s.safety*.25)+(quality.completeness*.2)), vote: voteFromScore(clamp((s.market*.55)+(s.safety*.25)+(quality.completeness*.2))), confidence: clamp((s.confidence*.5)+(quality.completeness*.5)),
+      name: 'Whale Agent', weight: weights.agents['Whale Agent'], score: clamp((s.market*.55)+(s.safety*.25)+(quality.completeness*.2)), vote: voteFromScore(clamp((s.market*.55)+(s.safety*.25)+(quality.completeness*.2))), confidence: clamp((s.confidence*.5)+(quality.completeness*.5)),
       bullish: [num(p.volume) > num(p.marketCap)*.03 && 'Volume is meaningful versus market cap', num(p.liquidity) >= 75000 && 'Liquidity can absorb more flow'].filter(Boolean),
       bearish: [num(p.liquidity) < 30000 && 'Whales can move price too easily', intel.fdvToLiq > 120 && 'FDV/liquidity is stretched'].filter(Boolean),
       changeMind: 'Deeper liquidity, lower top-holder concentration, and healthier holder distribution would improve whale-flow confidence.'
     },
     {
-      name: 'Skeptic Agent', weight: (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).agents['Skeptic Agent'], score: clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2), vote: voteFromScore(clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2)), confidence: clamp((100-s[weak])*.55 + s.confidence*.45),
-      bullish: [quality.completeness >= 80 && 'Data coverage is strong', s.final >= 75 && 'Overall score is hard to ignore'].filter(Boolean),
-      bearish: [`Weakest area is ${weak}`, quality.completeness < 70 && 'Data quality is incomplete', trend.level === 'danger' && trend.summary, runner && runner.scores[weak] > s[weak] && 'Runner-up threatens the weakest area'].filter(Boolean),
-      changeMind: 'More complete data, stronger weakest category, and fewer risk flags would reduce skepticism.'
+      name: 'Risk Sentinel Agent', weight: weights.agents['Risk Sentinel Agent'], score: sentinel.score, vote: sentinel.hardVeto || sentinel.score < 55 ? 'Bearish' : sentinel.score < 76 ? 'Neutral' : 'Bullish', confidence: clamp(58 + sentinel.totalPenalty + sentinel.severe.length * 8 + audit.completeness * .12),
+      bullish: [!sentinel.hardVeto && 'No hard veto detected', sentinel.score >= 76 && 'Sentinel risk score is clean enough'].filter(Boolean),
+      bearish: [...sentinel.severe.map(f => f.label), ...sentinel.warnings.slice(0, 2).map(f => f.label)].filter(Boolean),
+      changeMind: 'Clear hard vetoes: holder/deployer concentration, LP status, pair identity, contract authority, fake-volume and rug-proximity evidence.'
+    },
+    {
+      name: 'Evidence Agent', weight: weights.agents['Evidence Agent'], score: audit.score, vote: audit.score >= 72 ? 'Bullish' : audit.score >= 48 ? 'Neutral' : 'Bearish', confidence: clamp(audit.score * .55 + audit.completeness * .45),
+      bullish: [audit.supported >= 10 && `${audit.supported} evidence claims are supported`, audit.reliability >= 70 && `${audit.badge} source reliability`, audit.coverage >= 70 && 'Evidence graph coverage is strong'].filter(Boolean),
+      bearish: [audit.missingCritical.length && `${audit.missingCritical.length} critical evidence gaps`, audit.risks[0] && `Top weak evidence: ${audit.risks[0].claim}`, audit.reliability < 55 && 'Source reliability is not strong enough'].filter(Boolean),
+      changeMind: 'Run missing scans, resolve weak evidence nodes, and cross-check market/security/holder sources to raise audit confidence.'
+    },
+    {
+      name: 'Skeptic Agent', weight: weights.agents['Skeptic Agent'], score: clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0)), vote: voteFromScore(clamp(100 - ((100-quality.completeness)*.35) - (100-s.safety)*.45 - (100-s[weak])*.2 - (sentinel.hardVeto ? 18 : 0))), confidence: clamp((100-s[weak])*.55 + s.confidence*.45 + (sentinel.hardVeto ? 12 : 0)),
+      bullish: [quality.completeness >= 80 && 'Data coverage is strong', s.final >= 75 && !sentinel.hardVeto && 'Overall score is hard to ignore'].filter(Boolean),
+      bearish: [`Weakest area is ${weak}`, quality.completeness < 70 && 'Data quality is incomplete', sentinel.hardVeto && `Sentinel veto: ${sentinel.summary}`, trend.level === 'danger' && trend.summary, runner && runner.scores[weak] > s[weak] && 'Runner-up threatens the weakest area'].filter(Boolean),
+      changeMind: 'More complete data, stronger weakest category, no sentinel veto, and fewer risk flags would reduce skepticism.'
     }
   ];
   return kernels.map(k => ({ ...k, bullish: k.bullish.length ? k.bullish : ['No strong bullish evidence yet'], bearish: k.bearish.length ? k.bearish : ['No major bearish evidence in this lens'] }));
@@ -1372,10 +1430,11 @@ export function consensusFromKernels(kernels) {
   const top = sorted[0][0];
   const spread = sorted[0][1] - sorted[1][1];
   const riskVetoLevel = (globalThis.__AGENT_ARENA_WEIGHTS__ || DEFAULT_WEIGHTS).riskVeto;
-  const riskVeto = kernels.some(k => k.name === 'Risk Agent' && k.vote === 'Bearish' && k.confidence >= riskVetoLevel);
+  const riskVeto = kernels.some(k => (k.name === 'Risk Agent' || k.name === 'Risk Sentinel Agent') && k.vote === 'Bearish' && k.confidence >= riskVetoLevel);
+  const evidenceVeto = kernels.some(k => k.name === 'Evidence Agent' && k.vote === 'Bearish' && k.confidence >= 65);
   const disagreement = spread < .25 ? 'High' : spread < .75 ? 'Medium' : 'Low';
-  const label = riskVeto && top === 'Bullish' ? 'Speculative Bullish' : top;
-  return { totals, label, disagreement, riskVeto, spread };
+  const label = (riskVeto || evidenceVeto) && top === 'Bullish' ? 'Speculative Bullish' : top;
+  return { totals, label, disagreement, riskVeto, evidenceVeto, spread };
 }
 export function applyScenario(p, scenario) {
   const clone = JSON.parse(JSON.stringify(p));
@@ -1561,11 +1620,11 @@ export function evidenceSummary(p) {
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
-  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8) }));
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p) }));
   return {
     version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots) },
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner) },
     ranking,
     agentKernels: kernels,
     consensus,
@@ -1710,6 +1769,12 @@ export function reportMarkdown(data) {
   lines.push(``);
   lines.push(`## Agent Votes`);
   data.agentKernels.forEach(k => lines.push(`- ${k.name}: **${k.vote}** · score ${Math.round(k.score)} · confidence ${Math.round(k.confidence)}%`));
+  lines.push(``);
+  lines.push(`## Agent Sentinel / Evidence Audit`);
+  lines.push(`Sentinel: **${data.winner.sentinel?.gate || intel?.gate || 'Safe to Watch'}** · hard veto: **${data.winner.sentinel?.hardVeto ? 'Yes' : 'No'}** · penalty: **-${data.winner.sentinel?.totalPenalty || 0}**`);
+  (data.winner.sentinel?.severe?.length ? data.winner.sentinel.severe : [{ label: 'No hard veto', detail: data.winner.sentinel?.summary || 'No hard veto detected.' }]).slice(0, 4).forEach(x => lines.push(`- Sentinel: ${x.label} — ${x.detail}`));
+  lines.push(`Evidence audit: **${data.winner.evidenceAudit?.score || 0}/100** · ${data.winner.evidenceAudit?.summary || 'Evidence not audited.'}`);
+  (data.winner.evidenceAudit?.risks || []).slice(0, 4).forEach(x => lines.push(`- Weak evidence: ${x.claim} — ${x.value} (${x.source})`));
   lines.push(``);
   lines.push(`## Evidence Graph — Winner`);
   const winnerGraph = data.ranking[0]?.evidenceGraph;
