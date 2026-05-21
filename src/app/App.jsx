@@ -478,13 +478,13 @@ function App() {
     <section className="ux-hero" id="scan">
       <div className="ux-hero-main">
         <div className="saas-eyebrow"><img src="/avatar-192.png" alt="AgentArena avatar"/> Base AI Token Risk Dashboard</div>
-        <h1>Rank multiple Base tokens. Find the strongest signal.</h1>
-        <p className="saas-tagline">Paste one contract or a full list, analyze the battle, then review the leaderboard and export a verifiable report.</p>
+        <h1>Base token battles, ranked by evidence.</h1>
+        <p className="saas-tagline">Paste Base contracts, run the scans that matter, then compare score, confidence, evidence gaps, and export-ready verdicts in one flow.</p>
         <div className="ux-stepper" aria-label="Main workflow">
-          <span className="active"><b>1</b> Paste contracts</span>
-          <span><b>2</b> Analyze battle</span>
-          <span><b>3</b> Review leaderboard</span>
-          <span><b>4</b> Export report</span>
+          <a className="active" href="#scan"><b>1</b><span>Input</span><em>Paste contracts</em></a>
+          <a href="#verdict"><b>2</b><span>Verdict</span><em>Top token + reasons</em></a>
+          <a href="#leaderboard"><b>3</b><span>Compare</span><em>Leaderboard</em></a>
+          <a href="#reports"><b>4</b><span>Export</span><em>MD / JSON</em></a>
         </div>
       </div>
       <div className="ux-summary-card">
@@ -496,16 +496,21 @@ function App() {
 
     <section className="ux-workspace">
       <section className="ux-primary-card saas-panel">
-        <div className="saas-panel-head ux-head"><div><span>Step 1</span><h2>Paste contracts and rank the battle</h2><p>Add one Base contract or paste many at once. AgentArena ranks every imported token by evidence-backed risk score.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
-        <label className="saas-field compact-title">Battle title<input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
-        <div className="bulk-entry-card">
-          <label className="saas-field">Multiple Base contracts<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one contract per line\n0x... paste another contract"} /></label>
-          <div className="bulk-entry-actions"><button className="saas-btn primary" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank battle</button><span>Or fill the single-token cards below for manual comparison.</span></div>
-          {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') || bulkStatus.includes('invalid') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
+        <div className="saas-panel-head ux-head"><div><span>Step 1 · Input</span><h2>Start with real contracts</h2><p>Use the bulk box for a battle, or open a single-token card when you need manual enrichment. The page stays empty until real data is imported.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
+        <div className="input-layout">
+          <div className="bulk-entry-card">
+            <label className="saas-field">Base contracts to rank<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one contract per line\n0x... paste another contract"} /></label>
+            <div className="bulk-entry-actions"><button className="saas-btn primary" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank</button><span>Best for comparing 2+ tokens quickly.</span></div>
+            {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') || bulkStatus.includes('invalid') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
+          </div>
+          <aside className="battle-settings-card">
+            <label className="saas-field compact-title">Battle title<input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
+            <div className="flow-hints"><b>Recommended flow</b><span>1. Paste contracts</span><span>2. Import + rank</span><span>3. Add optional scans only for finalists</span></div>
+          </aside>
         </div>
         <div className="token-stack">
         {projects.map((p,i)=><article className="token-card ux-token-card" key={i}>
-          <header><div><small>Token {i+1}</small><h3>{p.symbol ? `$${p.symbol}` : p.name || 'New scan'}</h3><span>{p.contract ? shortAddr(p.contract) : 'Paste a Base contract address'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
+          <header><div><small>Manual token {i+1}</small><h3>{p.symbol ? `$${p.symbol}` : p.name || 'Single-token scan'}</h3><span>{p.contract ? shortAddr(p.contract) : 'Paste a Base contract address'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
           <div className="ux-contract-row">
             <label className="saas-field wide">Base contract<input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="0x... Base token contract" /></label>
             <button className="saas-btn primary big-cta" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze Token</button>
@@ -530,16 +535,16 @@ function App() {
 
       <section className="ux-results-grid" id="verdict">
         <div id="share-card" className={`verdict-card ux-verdict-card ${hasBattleData ? 'winner-glow' : ''}`}>
-          <div className="verdict-header"><span>Step 2 · Top 1 Winner</span><b>{hasBattleData ? 'Live leaderboard' : 'Waiting for input'}</b></div>
+          <div className="verdict-header"><span>Step 2 · Verdict</span><b>{hasBattleData ? 'Live result' : 'Waiting for input'}</b></div>
           <div className="verdict-title"><div className="winner-crown"><Crown size={36}/></div><div><small>{hasBattleData ? 'TOP 1 TOKEN' : 'Empty state'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'No token analyzed yet'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)}/100` : 'Paste a real Base contract above. The dashboard will stay blank until data is imported.'}</p></div></div>
           {hasBattleData ? <><div className="verdict-metrics"><div><strong>{winnerIntelV2.score}</strong><span>Risk score</span></div><div><strong>{winnerIntelV2.confidence}%</strong><span>Confidence</span></div><div><strong>{winnerQuality.completeness}%</strong><span>Complete</span></div></div><div className="risk-tags">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="clean-empty"><b>No fake sample loaded</b><span>No demo market cap, no fake volume, no placeholder score.</span></div>}
         </div>
-        <div className="saas-panel evidence-panel"><div className="saas-panel-head"><div><span>Step 3 · Evidence</span><h2>Why Top 1 wins</h2></div></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Evidence appears after Analyze Token.</p>}</div>
+        <div className="saas-panel evidence-panel"><div className="saas-panel-head"><div><span>Step 2 · Evidence</span><h2>Why it ranks #1</h2><p>Four readable signals before the deeper agent audit.</p></div></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Evidence appears after Analyze Token.</p>}</div>
       </section>
 
 
       <section className="saas-panel leaderboard-panel" id="leaderboard">
-        <div className="saas-panel-head"><div><span>Step 3 · Ranking Table</span><h2>Token leaderboard</h2><p>Every imported contract is sorted by adjusted risk score. Top 1 gets the winner highlight.</p></div><span className="mini-chip">{ranked.length || 0} ranked</span></div>
+        <div className="saas-panel-head"><div><span>Step 3 · Compare</span><h2>Token leaderboard</h2><p>Sorted by adjusted score, with confidence and data completeness visible before the detailed agent audit.</p></div><span className="mini-chip">{ranked.length || 0} ranked</span></div>
         {hasBattleData ? <div className="leaderboard-list">{ranked.map((p, idx) => { const intel = tokenIntelligence(p); const quality = dataQuality(p); return <div className={`leaderboard-row ${idx === 0 ? 'top-one' : ''}`} key={`${projectId(p)}-${idx}`}>
           <div className="rank-badge">{idx === 0 ? <Crown size={16}/> : `#${idx + 1}`}</div>
           <div className="rank-token"><b>{p.symbol ? `$${p.symbol}` : p.name || shortAddr(p.contract) || 'Token'}</b><span>{p.contract ? shortAddr(p.contract) : p.name || 'Manual token'}</span></div>
@@ -552,7 +557,7 @@ function App() {
 
 
       <section className="saas-panel agent-upgrade-panel" id="agent-council">
-        <div className="saas-panel-head"><div><span>Agent Council v2</span><h2>Sentinel + evidence audit</h2><p>Agents now produce claim/evidence/confidence signals, hard veto checks, and conflict-aware consensus.</p></div><span className={`mini-chip ${consensus.riskVeto || consensus.evidenceVeto ? 'danger' : 'ok'}`}>{consensus.riskVeto ? 'Risk veto active' : consensus.evidenceVeto ? 'Evidence veto active' : 'No veto'}</span></div>
+        <div className="saas-panel-head"><div><span>Step 4 · Deep audit</span><h2>Agent council</h2><p>Claim/evidence/confidence signals, hard veto checks, conflict arbitration, and manipulation risk after the leaderboard.</p></div><span className={`mini-chip ${consensus.riskVeto || consensus.evidenceVeto ? 'danger' : 'ok'}`}>{consensus.riskVeto ? 'Risk veto active' : consensus.evidenceVeto ? 'Evidence veto active' : 'No veto'}</span></div>
         {hasBattleData ? <>
           <div className="sentinel-grid">
             <div className={`sentinel-card ${sentinel.hardVeto ? 'danger' : 'ok'}`}><b>Risk Sentinel</b><strong>{sentinel.gate}</strong><span>{sentinel.summary}</span><em>Penalty -{sentinel.totalPenalty}</em></div>
@@ -582,7 +587,7 @@ function App() {
       </section>
 
       <section className="saas-panel report-panel" id="reports">
-        <div className="saas-panel-head"><div><span>Step 4</span><h2>Export report</h2><p>Download Markdown/JSON after reviewing the verdict. Reports include ranking, evidence, source coverage, gaps, and next verification tasks.</p></div><span className="mini-chip">MD + JSON</span></div>
+        <div className="saas-panel-head"><div><span>Step 5 · Export</span><h2>Export report</h2><p>Download Markdown/JSON after reviewing the verdict. Reports include ranking, evidence, source coverage, gaps, and next verification tasks.</p></div><span className="mini-chip">MD + JSON</span></div>
         <div className="report-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button><button onClick={exportCard}><Download size={16}/> Export Card</button><button onClick={saveBattle}><Save size={16}/> Save Battle</button></div>
         {reportStatus && <p className="saas-status ok">{reportStatus}</p>}{saveStatus && <p className="saas-status ok">{saveStatus}</p>}
       </section>
