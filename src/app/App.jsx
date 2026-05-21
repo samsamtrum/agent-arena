@@ -496,16 +496,16 @@ function App() {
 
     <section className="ux-workspace">
       <section className="ux-primary-card saas-panel">
-        <div className="saas-panel-head ux-head"><div><span>Step 1 · Input</span><h2>Start with real contracts</h2><p>Use the bulk box for a battle, or open a single-token card when you need manual enrichment. The page stays empty until real data is imported.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
+        <div className="saas-panel-head ux-head"><div><span>Step 1 · Input</span><h2>Start with real contracts</h2><p>Paste Base contracts first. Rank the battle immediately, then use manual scans only when a finalist needs deeper verification.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
         <div className="input-layout">
           <div className="bulk-entry-card">
-            <label className="saas-field">Base contracts to rank<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one contract per line\n0x... paste another contract"} /></label>
-            <div className="bulk-entry-actions"><button className="saas-btn primary" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank</button><span>Best for comparing 2+ tokens quickly.</span></div>
+            <label className="saas-field">Contracts<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one Base contract per line\n0x... add another contract to compare"} /></label>
+            <div className="bulk-entry-actions"><button className="saas-btn primary" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank</button><span>Fast path for 2+ tokens.</span></div>
             {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') || bulkStatus.includes('invalid') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
           </div>
           <aside className="battle-settings-card">
-            <label className="saas-field compact-title">Battle title<input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
-            <div className="flow-hints"><b>Recommended flow</b><span>1. Paste contracts</span><span>2. Import + rank</span><span>3. Add optional scans only for finalists</span></div>
+            <label className="saas-field compact-title">Battle title <small>optional</small><input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
+            <div className="flow-hints"><b>Flow</b><span>Paste</span><span>Rank</span><span>Verify finalists</span></div>
           </aside>
         </div>
         <div className="token-stack">
