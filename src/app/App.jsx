@@ -4,7 +4,7 @@ import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Co
 const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
 import { toPng } from 'html-to-image';
 import '../styles.css';
-import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, evidenceWeighting, confidenceCalibration, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, outcomeAgent, evidenceConflictArbiter, manipulationPatternAgent, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, evidenceWeighting, confidenceCalibration, agentReliabilityScore, evidenceFreshnessAgent, scenarioVerdictAgent, contributionBreakdownV2, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, outcomeAgent, evidenceConflictArbiter, manipulationPatternAgent, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
 
 const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 const evidenceButtonLabel = ({ done, locked, refreshLabel, addLabel, lockedLabel }) => locked ? lockedLabel : (done ? refreshLabel : addLabel);
@@ -71,6 +71,10 @@ function App() {
   const evidenceWeight = useMemo(() => evidenceWeighting(winner), [winner]);
   const confidenceGov = useMemo(() => confidenceCalibration(winner, winner.scores?.confidence), [winner]);
   const disagreement = useMemo(() => contradictionDetector(winner), [winner]);
+  const agentReliability = useMemo(() => agentReliabilityScore(winner, kernels), [winner, kernels]);
+  const freshness = useMemo(() => evidenceFreshnessAgent(winner), [winner]);
+  const scenarioVerdict = useMemo(() => scenarioVerdictAgent(winner), [winner]);
+  const contributionBreakdown = useMemo(() => contributionBreakdownV2(winner), [winner]);
   const redTeam = useMemo(() => redTeamChallenge(winner, ranked[1]), [winner, ranked]);
   const sourceJudge = useMemo(() => crossSourceJudge(winner), [winner]);
   const nextAction = useMemo(() => nextBestAction(winner, ranked), [winner, ranked]);
@@ -587,10 +591,19 @@ function App() {
             <div className="quality-card"><b>Verdict Trace Agent</b><strong>{Math.round(winner.scores?.adjustedFinal ?? winner.scores?.final ?? 0)}</strong><span>Security, market, holders, flow, and source reliability are traced into the final score.</span><em>{winner.scores?.penalties?.[0]?.label || winner.scores?.reasons?.safety?.[0]?.text || 'No hard penalty found.'}</em></div>
             <div className={`quality-card ${disagreement.severity >= 2 ? 'danger' : 'ok'}`}><b>Agent Disagreement</b><strong>{disagreement.label}</strong><span>{disagreement.items?.[0]?.detail || 'No major source contradiction detected.'}</span><em>Severity {disagreement.severity}/5</em></div>
           </div>
+          <div className="engine-v2-strip">
+            <div><b>Agent Reliability</b><strong>{agentReliability.score}%</strong><span>{agentReliability.weakest?.[0]?.name || 'No weak agent'} · {agentReliability.weakest?.[0]?.label || agentReliability.label}</span></div>
+            <div><b>Freshness Agent</b><strong>{freshness.score}/100</strong><span>{freshness.label} · {freshness.stale?.length || 0} stale</span></div>
+            <div><b>Scenario Verdict</b><strong>{scenarioVerdict.worst?.delta ?? 0}</strong><span>{scenarioVerdict.worst?.label || 'No scenario'} → {scenarioVerdict.worst?.verdict || scenarioVerdict.baseVerdict}</span></div>
+            <div><b>Contribution v2</b><strong>{contributionBreakdown.net >= 0 ? '+' : ''}{contributionBreakdown.net}</strong><span>{contributionBreakdown.positives?.[0]?.label || 'No pull-up'} / {contributionBreakdown.negatives?.[0]?.label || 'no pull-down'}</span></div>
+          </div>
           <div className="quality-detail-grid">
             <div><b>Next best scans</b>{evidenceWeight.nextBest?.slice(0,3).map(item => <span key={item.action}>{item.action} · {item.impact} impact · +{item.confidenceUnlock}% unlock</span>)}</div>
-            <div><b>Confidence caps</b>{confidenceGov.caps?.slice(0,3).map(cap => <span key={`${cap.cap}-${cap.reason}`}>≤{cap.cap}% · {cap.reason}</span>)}{!confidenceGov.caps?.length && <span>No active cap from current evidence.</span>}</div>
-            <div><b>Disagreement resolution</b>{disagreement.items?.slice(0,3).map(flag => <span className={flag.level} key={flag.label}>{flag.label}: {flag.detail}</span>)}{!disagreement.items?.length && <span>No major source contradiction detected.</span>}</div>
+            <div><b>Agent weak spots</b>{agentReliability.weakest?.slice(0,3).map(agent => <span key={agent.name}>{agent.name} · {agent.finalWeight}% · {agent.sources.join(', ') || 'no source'}</span>)}</div>
+            <div><b>Scenario changes</b>{scenarioVerdict.scenarios?.slice(0,3).map(sc => <span key={sc.id}>{sc.label}: {sc.verdict} · {sc.delta >= 0 ? '+' : ''}{sc.delta}</span>)}</div>
+            <div><b>Freshness checks</b>{freshness.sources?.filter(src => src.status !== 'Fresh').slice(0,3).map(src => <span key={src.id}>{src.name}: {src.status} · {src.ageLabel}</span>)}{!freshness.sources?.filter(src => src.status !== 'Fresh').length && <span>Core evidence is fresh.</span>}</div>
+            <div><b>Pull up</b>{contributionBreakdown.positives?.slice(0,3).map(c => <span className="good" key={`${c.label}-${c.source}`}>{c.label}: +{c.impact} · {c.reason}</span>)}</div>
+            <div><b>Pull down</b>{contributionBreakdown.negatives?.slice(0,3).map(c => <span className="warn" key={`${c.label}-${c.source}`}>{c.label}: {c.impact} · {c.reason}</span>)}</div>
           </div>
         </> : <p className="muted">Evaluation Quality activates after Analyze Token imports real evidence.</p>}
       </section>

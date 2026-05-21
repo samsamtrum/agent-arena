@@ -1406,6 +1406,108 @@ export function calibrationAgent(p) {
   return { label, rawScore, calibratedScore, confidenceCap: calibration.cap, calibratedConfidence: calibration.calibrated, inflationRisk, whyCapped, requiredEvidenceToUnlock, tier: calibration.tier, evidenceScore: calibration.evidenceScore, summary: `${label}: raw ${rawScore}, calibrated ${calibratedScore}, confidence cap ${calibration.cap}%.` };
 }
 
+export function agentReliabilityScore(p, kernels = []) {
+  const reliability = sourceReliability(p);
+  const freshness = evidenceFreshnessAgent(p);
+  const conflicts = contradictionDetector(p);
+  const readiness = scanReadiness(p);
+  const agentDefs = [
+    ['Builder Agent', 'builder', ['builder']],
+    ['Trader Agent', 'market', ['market', 'market-crosscheck']],
+    ['Risk Agent', 'safety', ['security', 'holders', 'deployer', 'lp']],
+    ['Meme Agent', 'meme', ['social', 'farcaster']],
+    ['Whale Agent', 'safety', ['whale-flow', 'holders', 'deployer']],
+    ['Skeptic Agent', 'confidence', ['security', 'holders', 'market-crosscheck', 'whale-flow']]
+  ];
+  const sources = sourcePlugins(p).plugins;
+  const scoreMap = { High: 94, Medium: 68, Low: 38, Missing: 0 };
+  const kernelMap = Object.fromEntries((kernels || []).map(k => [k.name, k]));
+  const agentsOut = agentDefs.map(([name, lane, sourceIds]) => {
+    const covered = sourceIds.map(id => sources.find(x => x.id === id)).filter(Boolean);
+    const coverage = Math.round(covered.reduce((sum, src) => sum + (src.status === 'missing' ? 0 : scoreMap[src.confidence] ?? 45), 0) / Math.max(1, covered.length));
+    const stalePenalty = freshness.sources.filter(x => sourceIds.includes(x.id) && x.status === 'Stale').length * 12 + freshness.sources.filter(x => sourceIds.includes(x.id) && x.status === 'Aging').length * 5;
+    const conflictPenalty = conflicts.severity * (['Risk Agent','Whale Agent','Skeptic Agent'].includes(name) ? 5 : 3);
+    const missingPenalty = readiness.gaps.filter(g => sourceIds.includes(g.id) && g.critical).length * 8;
+    const base = clamp(coverage * .58 + reliability.score * .22 + freshness.score * .2 - stalePenalty - conflictPenalty - missingPenalty, 0, 100);
+    const kernel = kernelMap[name];
+    const finalWeight = Math.round(clamp((kernel?.confidence ?? 60) * .35 + base * .65, 0, 100));
+    const label = finalWeight >= 78 ? 'Trusted' : finalWeight >= 58 ? 'Usable' : finalWeight >= 38 ? 'Weak' : 'Do not trust';
+    return { name, lane, label, score: Math.round(base), finalWeight, coverage, stalePenalty, conflictPenalty, missingPenalty, sources: covered.map(x => x.id), reason: `${name} is ${label.toLowerCase()} because coverage is ${coverage}% and source freshness is ${freshness.score}%.` };
+  });
+  const average = Math.round(agentsOut.reduce((a,b)=>a+b.finalWeight,0) / Math.max(1, agentsOut.length));
+  const weakest = agentsOut.slice().sort((a,b)=>a.finalWeight-b.finalWeight).slice(0,3);
+  const strongest = agentsOut.slice().sort((a,b)=>b.finalWeight-a.finalWeight).slice(0,3);
+  const label = average >= 76 ? 'Reliable Agent Council' : average >= 58 ? 'Partially Reliable Council' : average >= 40 ? 'Weak Agent Council' : 'Untrusted Council';
+  return { label, score: average, agents: agentsOut, weakest, strongest, summary: `${label}: average agent reliability ${average}%; weakest ${weakest[0]?.name || 'none'}.` };
+}
+
+export function evidenceFreshnessAgent(p) {
+  const now = Date.now();
+  const ageHours = value => { const t = value ? Date.parse(value) : NaN; return Number.isFinite(t) ? Math.max(0, (now - t) / 36e5) : null; };
+  const marketStamp = p.gecko?.checkedAt || p.updatedAt || p.lastUpdated || null;
+  const sources = [
+    { id: 'market-crosscheck', name: 'Market cross-check', hours: ageHours(marketStamp), available: Boolean(p.gecko || num(p.price) || num(p.liquidity) || num(p.volume)), ttl: 1.5, stale: 8 },
+    { id: 'security', name: 'Security scan', hours: ageHours(p.security?.checkedAt || p.security?.updatedAt), available: Boolean(p.security), ttl: 24, stale: 72 },
+    { id: 'holders', name: 'Holder scan', hours: ageHours(p.holders?.checkedAt), available: Boolean(p.holders), ttl: 12, stale: 36 },
+    { id: 'whale-flow', name: 'Whale flow', hours: ageHours(p.transferFlow?.checkedAt), available: Boolean(p.transferFlow), ttl: 6, stale: 24 },
+    { id: 'deployer', name: 'Deployer scan', hours: ageHours(p.deployerScan?.checkedAt), available: Boolean(p.deployerScan), ttl: 48, stale: 168 },
+    { id: 'farcaster', name: 'Farcaster scan', hours: ageHours(p.farcasterScan?.checkedAt), available: Boolean(p.farcasterScan), ttl: 8, stale: 24 },
+    { id: 'builder', name: 'GitHub repo', hours: ageHours(p.lastPushed || p.repoUpdatedAt), available: Boolean(parseRepo(p.repo || p.repoUrl || '')), ttl: 24*30, stale: 24*120 }
+  ].map(src => {
+    let status = 'Missing', score = 0;
+    if (src.available && src.hours === null) { status = 'Unknown age'; score = 52; }
+    else if (src.available && src.hours <= src.ttl) { status = 'Fresh'; score = 100; }
+    else if (src.available && src.hours <= src.stale) { status = 'Aging'; score = 68; }
+    else if (src.available) { status = 'Stale'; score = 28; }
+    return { ...src, status, score: Math.round(score), ageLabel: src.hours === null ? 'unknown' : src.hours < 1 ? `${Math.round(src.hours*60)}m` : `${Math.round(src.hours)}h` };
+  });
+  const critical = sources.filter(x => ['market-crosscheck','security','holders','whale-flow'].includes(x.id));
+  const score = Math.round(critical.reduce((a,b)=>a+b.score,0) / Math.max(1, critical.length));
+  const stale = sources.filter(x => x.status === 'Stale');
+  const aging = sources.filter(x => x.status === 'Aging');
+  const label = score >= 82 ? 'Fresh enough' : score >= 60 ? 'Aging evidence' : score >= 35 ? 'Stale / partial' : 'Missing freshness';
+  return { label, score, sources, stale, aging, summary: `${label}: ${score}/100 freshness across core evidence.` };
+}
+
+export function scenarioVerdictAgent(p) {
+  const baseScores = p.scores || scoreProject(p);
+  const baseLabel = verdict(baseScores.adjustedFinal ?? baseScores.final);
+  const scenarios = [
+    { id: 'security-fail', label: 'If Security Scan fails', patch: { risk: Math.max(num(p.risk), 86), security: { ...(p.security || {}), is_honeypot: '1', checkedAt: new Date().toISOString() } }, expected: 'Hard downgrade until contract risk clears.' },
+    { id: 'holders-concentrated', label: 'If holders are concentrated', patch: { holders: { ...(p.holders || {}), holderCount: num(p.holders?.holderCount) || 25, top10Pct: 74, top1Pct: 34, checkedAt: new Date().toISOString() } }, expected: 'Holder risk can override market/social strength.' },
+    { id: 'market-confirmed', label: 'If market source confirms', patch: { gecko: { ...(p.gecko || {}), liquidity: num(p.liquidity), volume24h: num(p.volume), checkedAt: new Date().toISOString() } }, expected: 'Confidence can unlock if identity and liquidity match.' },
+    { id: 'deployer-risk', label: 'If deployer is risky', patch: { deployerScan: { ...(p.deployerScan || {}), txCount: 3, contractCreations: 6, checkedAt: new Date().toISOString() } }, expected: 'Deployer risk forces manual review.' }
+  ].map(sc => {
+    const token = { ...p, ...sc.patch };
+    const scores = scoreProject(token);
+    const intel = tokenIntelligence({ ...token, scores });
+    const delta = Math.round((scores.adjustedFinal ?? scores.final) - (baseScores.adjustedFinal ?? baseScores.final));
+    return { id: sc.id, label: sc.label, score: Math.round(scores.adjustedFinal ?? scores.final), confidence: Math.round(intel.confidence), verdict: intel.label, delta, expected: sc.expected, change: delta <= -12 ? 'Downgrade risk' : delta >= 8 ? 'Upgrade possible' : 'Verdict stable' };
+  });
+  const worst = scenarios.slice().sort((a,b)=>a.score-b.score)[0];
+  const best = scenarios.slice().sort((a,b)=>b.score-a.score)[0];
+  return { baseScore: Math.round(baseScores.adjustedFinal ?? baseScores.final), baseVerdict: baseLabel, scenarios, worst, best, summary: `Worst case: ${worst?.label || 'none'} → ${worst?.verdict || baseLabel}; best unlock: ${best?.label || 'none'}.` };
+}
+
+export function contributionBreakdownV2(p) {
+  const scores = p.scores || scoreProject(p);
+  const reliability = sourceReliability(p);
+  const calibration = confidenceCalibration({ ...p, scores }, scores.confidence || 0);
+  const matrix = evaluationMatrix({ ...p, scores });
+  const trace = verdictTrace({ ...p, scores });
+  const positives = [
+    ...matrix.strongest.map(d => ({ label: d.label, impact: Math.round((d.score - 50) * d.weight / 5), confidence: d.confidence, source: d.id, reason: d.evidence })),
+    ...trace.positives.slice(0,3).map(x => ({ label: x.label, impact: Math.round(num(x.value)), confidence: 'Trace', source: 'verdict-trace', reason: x.detail }))
+  ].filter(x => x.impact > 0).slice(0,5);
+  const negatives = [
+    ...matrix.weakest.map(d => ({ label: d.label, impact: -Math.round((100 - d.score) * d.weight / 6), confidence: d.confidence, source: d.id, reason: d.evidence })),
+    { label: 'Reliability haircut', impact: -Math.round(adjustedScore({ ...p, scores }).haircut || 0), confidence: reliability.badge, source: 'source-reliability', reason: `${reliability.score}% reliability` },
+    { label: 'Confidence cap', impact: -Math.round(Math.max(0, scores.confidence - calibration.calibrated) / 3), confidence: calibration.tier, source: 'confidence-governor', reason: calibration.caps?.[0]?.reason || 'No active cap' }
+  ].filter(x => x.impact < 0).slice(0,6);
+  const net = positives.reduce((a,b)=>a+b.impact,0) + negatives.reduce((a,b)=>a+b.impact,0);
+  return { score: Math.round(scores.adjustedFinal ?? scores.final), net, positives, negatives, summary: `Score ${Math.round(scores.adjustedFinal ?? scores.final)}/100 with net explainability impact ${net >= 0 ? '+' : ''}${net}.` };
+}
+
 export function comparativeJudge(p, ranked = [], runner = null) {
   const all = (ranked && ranked.length ? ranked : [p, runner].filter(Boolean)).map(x => ({ ...x, scores: x.scores || scoreProject(x) }));
   const current = all.find(x => projectId(x) === projectId(p)) || { ...p, scores: p.scores || scoreProject(p) };
@@ -1928,11 +2030,11 @@ export function evidenceSummary(p) {
 }
 
 export function buildReportData({ ranked, winner, kernels, consensus, debate, review, tasks, backtest, scenarioResult, weights, snapshots = {} }) {
-  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p), redTeam: redTeamChallenge(p, ranked[i + 1]), sourceJudge: crossSourceJudge(p), nextAction: nextBestAction(p, ranked), thesis: tokenThesis(p, ranked[i + 1]), evaluationMatrix: evaluationMatrix(p), calibrationAgent: calibrationAgent(p), comparativeJudge: comparativeJudge(p, ranked, ranked[i + 1]), riskAdjustedUpside: riskAdjustedUpside(p), outcomeAgent: outcomeAgent(p, backtest?.recent || backtest?.resolved || []), conflictArbiter: evidenceConflictArbiter(p), manipulationPattern: manipulationPatternAgent(p) }));
+  const ranking = ranked.map((p, i) => ({ rank: i + 1, name: p.name, symbol: p.symbol, scores: p.scores, intelligence: tokenIntelligence(p), summary: evidenceSummary(p), riskCards: riskCards(p), remediation: remediationQueue(p), analystConclusion: analystConclusion(p), delta: riskDeltaEngine(p, snapshots), reliability: sourceReliability(p), adjusted: adjustedScore(p), sources: sourcePlugins(p), evidence: evidenceTrail(p), evidenceGraph: evidenceGraph(p), contradictions: contradictionDetector(p), riskExplanation: explainRisk(p), riskFlags: getRiskIntel(p).flags.slice(0, 8), sentinel: riskSentinel(p), evidenceAudit: evidenceAudit(p), redTeam: redTeamChallenge(p, ranked[i + 1]), sourceJudge: crossSourceJudge(p), nextAction: nextBestAction(p, ranked), thesis: tokenThesis(p, ranked[i + 1]), evaluationMatrix: evaluationMatrix(p), calibrationAgent: calibrationAgent(p), comparativeJudge: comparativeJudge(p, ranked, ranked[i + 1]), riskAdjustedUpside: riskAdjustedUpside(p), outcomeAgent: outcomeAgent(p, backtest?.recent || backtest?.resolved || []), conflictArbiter: evidenceConflictArbiter(p), manipulationPattern: manipulationPatternAgent(p), agentReliability: agentReliabilityScore(p, kernels), freshness: evidenceFreshnessAgent(p), scenarioVerdict: scenarioVerdictAgent(p), contributionBreakdown: contributionBreakdownV2(p) }));
   return {
     version: 'report-v2',
     generatedAt: new Date().toISOString(),
-    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner), redTeam: redTeamChallenge(winner, ranked[1]), sourceJudge: crossSourceJudge(winner), nextAction: nextBestAction(winner, ranked), thesis: tokenThesis(winner, ranked[1]), evaluationMatrix: evaluationMatrix(winner), calibrationAgent: calibrationAgent(winner), comparativeJudge: comparativeJudge(winner, ranked, ranked[1]), riskAdjustedUpside: riskAdjustedUpside(winner), outcomeAgent: outcomeAgent(winner, backtest?.recent || backtest?.resolved || []), conflictArbiter: evidenceConflictArbiter(winner), manipulationPattern: manipulationPatternAgent(winner) },
+    winner: { name: winner.name, symbol: winner.symbol, final: Math.round(winner.scores.final), adjustedFinal: Math.round(winner.scores.adjustedFinal ?? winner.scores.final), reliabilityBadge: winner.scores.reliabilityBadge, consensus: consensus.label, intelligence: tokenIntelligence(winner), summary: evidenceSummary(winner), riskCards: riskCards(winner), remediation: remediationQueue(winner), analystConclusion: analystConclusion(winner), delta: riskDeltaEngine(winner, snapshots), sentinel: riskSentinel(winner), evidenceAudit: evidenceAudit(winner), redTeam: redTeamChallenge(winner, ranked[1]), sourceJudge: crossSourceJudge(winner), nextAction: nextBestAction(winner, ranked), thesis: tokenThesis(winner, ranked[1]), evaluationMatrix: evaluationMatrix(winner), calibrationAgent: calibrationAgent(winner), comparativeJudge: comparativeJudge(winner, ranked, ranked[1]), riskAdjustedUpside: riskAdjustedUpside(winner), outcomeAgent: outcomeAgent(winner, backtest?.recent || backtest?.resolved || []), conflictArbiter: evidenceConflictArbiter(winner), manipulationPattern: manipulationPatternAgent(winner), agentReliability: agentReliabilityScore(winner, kernels), freshness: evidenceFreshnessAgent(winner), scenarioVerdict: scenarioVerdictAgent(winner), contributionBreakdown: contributionBreakdownV2(winner) },
     ranking,
     agentKernels: kernels,
     consensus,
@@ -2100,6 +2202,17 @@ export function reportMarkdown(data) {
   lines.push(`Comparative judge: ${data.winner.comparativeJudge?.finalRankingRationale || 'No comparison available.'}`);
   lines.push(`Runner-up threat: ${data.winner.comparativeJudge?.runnerUpThreat || 'N/A'}`);
   lines.push(`Risk-adjusted upside: **${data.winner.riskAdjustedUpside?.positionType || 'Unavailable'}** — ${data.winner.riskAdjustedUpside?.summary || 'N/A'}`);
+  lines.push(``);
+  lines.push(`## Evaluation Engine v2`);
+  lines.push(`Agent reliability: **${data.winner.agentReliability?.label || 'Unavailable'}** · score **${data.winner.agentReliability?.score ?? 0}%**`);
+  (data.winner.agentReliability?.weakest || []).slice(0, 3).forEach(a => lines.push(`- Weak agent: ${a.name} — ${a.finalWeight}% · ${a.reason}`));
+  lines.push(`Evidence freshness: **${data.winner.freshness?.label || 'Unavailable'}** · score **${data.winner.freshness?.score ?? 0}/100**`);
+  (data.winner.freshness?.sources || []).filter(s => s.status !== 'Fresh').slice(0, 5).forEach(s => lines.push(`- Freshness: ${s.name} — ${s.status} · age ${s.ageLabel}`));
+  lines.push(`Scenario verdict: ${data.winner.scenarioVerdict?.summary || 'Unavailable'}`);
+  (data.winner.scenarioVerdict?.scenarios || []).slice(0, 4).forEach(s => lines.push(`- Scenario: ${s.label} — ${s.verdict} · score ${s.score}/100 · delta ${s.delta >= 0 ? '+' : ''}${s.delta}`));
+  lines.push(`Contribution breakdown: ${data.winner.contributionBreakdown?.summary || 'Unavailable'}`);
+  (data.winner.contributionBreakdown?.positives || []).slice(0, 3).forEach(c => lines.push(`- Pull up: ${c.label} ${c.impact >= 0 ? '+' : ''}${c.impact} — ${c.reason}`));
+  (data.winner.contributionBreakdown?.negatives || []).slice(0, 3).forEach(c => lines.push(`- Pull down: ${c.label} ${c.impact} — ${c.reason}`));
   lines.push(``);
   lines.push(`## Outcome / Conflict / Manipulation Agents`);
   lines.push(`Outcome agent: **${data.winner.outcomeAgent?.label || 'Unavailable'}** · accuracy **${data.winner.outcomeAgent?.predictionAccuracy ?? 0}%** · samples **${data.winner.outcomeAgent?.sampleSize ?? 0}**`);
