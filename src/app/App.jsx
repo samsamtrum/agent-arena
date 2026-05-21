@@ -510,23 +510,24 @@ function App() {
         </div>
         <div className="token-stack">
         {projects.map((p,i)=><article className="token-card ux-token-card" key={i}>
-          <header><div><small>Manual token {i+1}</small><h3>{p.symbol ? `$${p.symbol}` : p.name || 'Single-token scan'}</h3><span>{p.contract ? shortAddr(p.contract) : 'Paste a Base contract address'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
-          <div className="ux-contract-row">
-            <label className="saas-field wide">Base contract<input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="0x... Base token contract" /></label>
-            <button className="saas-btn primary big-cta" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze Token</button>
-            <button className="saas-btn secondary-cta" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import only</button>
+          <header><div><small>Manual verification lane</small><h3>{p.symbol ? `$${p.symbol}` : p.name || `Token ${i+1}`}</h3><span>{p.contract ? shortAddr(p.contract) : 'Use when a token needs individual checks'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
+          <div className="manual-scan-grid">
+            <div className="manual-contract-panel">
+              <label className="saas-field wide">Base contract<input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="0x... Base token contract" /></label>
+              <div className="manual-actions"><button className="saas-btn primary big-cta" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze token</button><button aria-label="Import only" className="saas-btn secondary-cta" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import data</button></div>
+            </div>
+            <div className="evidence-source-panel">
+              <div className="ux-details-title">Optional evidence sources</div>
+              <div className="secondary-grid evidence-fields">
+                <label className="saas-field">GitHub repo<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="owner/repo or GitHub URL" /></label>
+                <label className="saas-field">Deployer / owner<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label>
+              </div>
+              <div className="tool-row compact-tools evidence-tools" aria-label="Optional scan tools">
+                <button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}><TrendingUp size={16}/> Market</button><button onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}><LockKeyhole size={16}/> Security</button><button onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}><Coins size={16}/> Holders</button><button onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}><Coins size={16}/> Whale flow</button><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}><Code2 size={16}/> Repo</button><button onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}><Sparkles size={16}/> Farcaster</button><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}><ShieldAlert size={16}/> Deployer</button>
+              </div>
+            </div>
           </div>
           {[analyzeStatus[i], imports[i], marketStatus[i], repoImports[i], securityStatus[i], holderStatus[i], whaleFlowStatus[i], farcasterStatus[i], deployerStatus[i]].filter(x=>x && x !== 'loading').map((x,idx)=><p className={String(x).includes('complete') || String(x).startsWith('Imported') ? 'saas-status ok' : 'saas-status'} key={idx}>{x}</p>)}
-          <div className="ux-details">
-            <div className="ux-details-title">Optional enrichment scans</div>
-            <div className="secondary-grid">
-              <label className="saas-field">GitHub repo or URL<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="owner/repo or GitHub URL" /></label>
-              <label className="saas-field">Deployer/owner address<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label>
-            </div>
-            <div className="tool-row compact-tools">
-              <button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}><TrendingUp size={16}/> Market</button><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}><Code2 size={16}/> Repo</button><button onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}><LockKeyhole size={16}/> Security</button><button onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}><Coins size={16}/> Holders</button><button onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}><Coins size={16}/> Whale flow</button><button onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}><Sparkles size={16}/> Farcaster</button><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}><ShieldAlert size={16}/> Deployer</button>
-            </div>
-          </div>
           {hasProjectData(p) && <div className="token-meta"><span>{p.symbol || 'TOKEN'}</span>{p.price ? <b>{money(p.price, 4)}</b> : null}{p.marketCap ? <span>{money(p.marketCap)} cap</span> : null}{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}</div>}
         </article>)}
         </div>
