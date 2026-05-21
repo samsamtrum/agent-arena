@@ -484,176 +484,74 @@ function App() {
     }
   };
 
-  return <main className="saas-app ux-app">
-    <section className="ux-hero" id="scan">
-      <div className="ux-hero-main">
-        <div className="saas-eyebrow"><img src="/avatar-192.png" alt="AgentArena avatar"/> Base AI Token Risk Dashboard</div>
-        <h1>Base token battles, ranked by evidence.</h1>
-        <p className="saas-tagline">Paste Base contracts, run the scans that matter, then compare score, confidence, evidence gaps, and export-ready verdicts in one flow.</p>
-        <div className="ux-stepper" aria-label="Main workflow">
-          <a className="active" href="#scan"><b>1</b><span>Input</span><em>Paste contracts</em></a>
-          <a href="#verdict"><b>2</b><span>Verdict</span><em>Top token + reasons</em></a>
-          <a href="#leaderboard"><b>3</b><span>Compare</span><em>Leaderboard</em></a>
-          <a href="#reports"><b>4</b><span>Export</span><em>MD / JSON</em></a>
-        </div>
+  return <main className="market-app">
+    <section className="market-hero" id="scan">
+      <div className="market-hero-copy">
+        <span className="market-kicker">Base intelligence desk</span>
+        <h1>Base token battles</h1>
+        <p>Import real contracts, rank them by evidence, and leave with a report an analyst can defend.</p>
+        <div className="market-actions"><a href="#leaderboard">View leaderboard</a><a href="#reports">Export report</a></div>
       </div>
-      <div className="ux-summary-card">
-        <span>Current verdict</span>
-        <strong>{hasBattleData ? `#1 ${winner.symbol ? `$${winner.symbol}` : winner.name || 'Token'}` : 'Ready to rank'}</strong>
-        <p>{hasBattleData ? `${winnerIntelV2.label} · ${winnerIntelV2.score}/100 · ${winnerIntelV2.confidence}% confidence` : 'No demo metrics. No fake token data. Start with real Base contracts.'}</p>
-      </div>
+      <aside className="market-hero-ticket">
+        <span>Current book</span>
+        <strong>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name || 'Token') : 'No live token'}</strong>
+        <p>{hasBattleData ? `${winnerIntelV2.label} · ${winnerIntelV2.confidence}% confidence` : 'Paste a Base contract to open the desk.'}</p>
+      </aside>
     </section>
 
-    <section className="ux-workspace">
-      <section className="ux-primary-card saas-panel">
-        <div className="saas-panel-head ux-head"><div><span>Step 1 · Input</span><h2>Start with real contracts</h2><p>Paste Base contracts first. Rank the battle immediately, then use manual scans only when a finalist needs deeper verification.</p></div><button className="ghost-action" onClick={newBattle}><RotateCcw size={16}/> Reset</button></div>
-        <div className="input-layout">
-          <div className="bulk-entry-card">
-            <label className="saas-field">Contracts<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one Base contract per line\n0x... add another contract to compare"} /></label>
-            <div className="bulk-entry-actions"><button className="saas-btn primary" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank</button><span>Fast path for 2+ tokens.</span></div>
-            {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') || bulkStatus.includes('invalid') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
-          </div>
-          <aside className="battle-settings-card">
-            <label className="saas-field compact-title">Battle title <small>optional</small><input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
-            <div className="flow-hints"><b>Flow</b><span>Paste</span><span>Rank</span><span>Verify finalists</span></div>
-          </aside>
+    <section className="desk-grid">
+      <section className="desk-card input-card">
+        <div className="section-title"><span>Step 1 · Input</span><h2>Start with real contracts</h2><p>Battle title, bulk import, then individual verification lanes for finalists.</p></div>
+        <div className="input-split">
+          <label className="field">Battle title<input aria-label="Battle title" value={battleTitle} onChange={e=>setBattleTitle(e.target.value)} /></label>
+          <button className="quiet-btn" onClick={newBattle}><RotateCcw size={16}/> Reset</button>
         </div>
-        <div className="token-stack">
-        {projects.map((p,i)=>{
-          const evidenceModules = [
-            { key:'market', aria:'Market', icon:TrendingUp, done:Boolean(p.gecko), core:true, locked:false, addLabel:'Add market', refreshLabel:'Refresh market', lockedLabel:'Market needs data', onClick:()=>scanMarket(i), loading:marketStatus[i] === 'loading', title:p.gecko ? 'Market was included by Analyze token. Refresh if price/liquidity changed.' : 'Add current market cross-check.' },
-            { key:'security', aria:'Security', icon:LockKeyhole, done:Boolean(p.security), core:true, locked:false, addLabel:'Add security', refreshLabel:'Refresh security', lockedLabel:'Security needs data', onClick:()=>scanSecurity(i), loading:securityStatus[i] === 'loading', title:p.security ? 'Security was included by Analyze token. Refresh if contract data changed.' : 'Add token security scan.' },
-            { key:'holders', aria:'Holders', icon:Coins, done:Boolean(p.holders), core:false, locked:!basescanKey.trim(), addLabel:'Add holders', refreshLabel:'Refresh holders', lockedLabel:'Needs BaseScan', onClick:()=>scanHolders(i), loading:holderStatus[i] === 'loading', title:basescanKey.trim() ? 'Add or refresh holder distribution.' : 'Add BaseScan API key to unlock holder scan.' },
-            { key:'flow', aria:'Whale flow', icon:Coins, done:Boolean(p.transferFlow), core:false, locked:!basescanKey.trim(), addLabel:'Add flow', refreshLabel:'Refresh flow', lockedLabel:'Needs BaseScan', onClick:()=>scanWhaleFlow(i), loading:whaleFlowStatus[i] === 'loading', title:basescanKey.trim() ? 'Add or refresh whale transfer flow.' : 'Add BaseScan API key to unlock whale flow.' },
-            { key:'repo', icon:Code2, done:Boolean(p.repoUrl), core:false, locked:false, addLabel:'Add repo', refreshLabel:'Refresh repo', lockedLabel:'Repo unavailable', onClick:()=>importRepo(i), loading:repoImports[i] === 'loading', aria:'Repo', title:p.repoUrl ? 'Repo already imported. Click to refresh.' : 'Add GitHub repo evidence.' },
-            { key:'social', aria:'Farcaster', icon:Sparkles, done:Boolean(p.farcasterScan), core:false, locked:!neynarKey.trim(), addLabel:'Add social', refreshLabel:'Refresh social', lockedLabel:'Needs Neynar', onClick:()=>scanFarcaster(i), loading:farcasterStatus[i] === 'loading', title:neynarKey.trim() ? 'Add or refresh Farcaster signal.' : 'Add Neynar API key to unlock Farcaster scan.' },
-            { key:'deployer', aria:'Deployer', icon:ShieldAlert, done:Boolean(p.deployerScan), core:false, locked:!basescanKey.trim(), addLabel:'Add deployer', refreshLabel:'Refresh deployer', lockedLabel:'Needs BaseScan', onClick:()=>scanDeployer(i), loading:deployerStatus[i] === 'loading', title:basescanKey.trim() ? 'Add or refresh deployer history.' : 'Add BaseScan API key to unlock deployer scan.' }
-          ];
-          const readyEvidence = evidenceModules.filter(m => m.done).length;
-          const coreReady = evidenceModules.filter(m => m.core && m.done).length;
-          return <article className="token-card ux-token-card" key={i}>
-          <header><div><small>Manual verification lane</small><h3>{p.symbol ? `$${p.symbol}` : p.name || `Token ${i+1}`}</h3><span>{p.contract ? shortAddr(p.contract) : 'Use when a token needs individual checks'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
-          <div className="manual-scan-grid">
-            <div className="manual-contract-panel">
-              <label className="saas-field wide">Base contract<input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="0x... Base token contract" /></label>
-              <div className="manual-actions"><button className="saas-btn primary big-cta" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze token</button><button aria-label="Import only" className="saas-btn secondary-cta" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import data</button></div>
-            </div>
-            <div className="evidence-source-panel">
-              <div className="evidence-panel-head"><div><div className="ux-details-title">Evidence modules</div><p className="evidence-helper">Analyze token runs the core checks first. Use modules below only to refresh data or unlock deeper sources.</p></div><span className="evidence-count">{readyEvidence}/7 ready</span></div>
-              <div className="evidence-core-strip"><span className={coreReady === 2 ? 'ready' : ''}>Core: market + security</span><span className={basescanKey.trim() ? 'ready' : 'locked'}>{basescanKey.trim() ? 'BaseScan enabled' : 'BaseScan locked'}</span><span className={neynarKey.trim() ? 'ready' : 'locked'}>{neynarKey.trim() ? 'Social enabled' : 'Social locked'}</span></div>
-              <div className="secondary-grid evidence-fields">
-                <label className="saas-field">GitHub repo<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="owner/repo or GitHub URL" /></label>
-                <label className="saas-field">Deployer / owner<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label>
-              </div>
-              <div className="evidence-module-grid" aria-label="Optional scan tools">
-                {evidenceModules.map(m => { const Icon = m.icon; return <button key={m.key} aria-label={m.aria || m.addLabel} className={`evidence-module ${m.done ? 'has-evidence' : ''} ${m.locked ? 'is-locked' : ''}`} title={m.title} onClick={m.onClick} disabled={m.loading}>
-                  <span className="evidence-module-icon">{m.loading ? <Loader2 size={16} className="spin"/> : m.done ? <CircleCheck size={16}/> : m.locked ? <Key size={16}/> : <Icon size={16}/>}</span>
-                  <span><b>{evidenceButtonLabel(m)}</b><em>{m.done ? 'Included · click to refresh' : m.locked ? 'Add API key to unlock' : m.core ? 'Core scan source' : 'Optional evidence'}</em></span>
-                </button>})}
-              </div>
-            </div>
+        <label className="field bulk-field">Contracts<textarea aria-label="Paste multiple Base contracts" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder={"0x... one Base contract per line\n0x... add another contract to compare"} /></label>
+        <div className="button-row"><button className="solid-btn" onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Crown size={17}/>} Import and rank</button><button className="quiet-btn" onClick={addProject}>+ Compare another token</button></div>
+        {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') || bulkStatus.includes('invalid') ? 'status-line warn' : 'status-line ok'}>{bulkStatus}</p>}
+      </section>
+
+      <section className="desk-card side-card">
+        <span>Workflow</span><ol><li>Paste contracts</li><li>Rank by live evidence</li><li>Verify gaps</li><li>Export audit</li></ol>
+      </section>
+    </section>
+
+    <section className="token-ledger">
+      {projects.map((p,i)=>{
+        const evidenceModules = [
+          { key:'market', aria:'Market', icon:TrendingUp, done:Boolean(p.gecko), core:true, locked:false, addLabel:'Add market', refreshLabel:'Refresh market', lockedLabel:'Market needs data', onClick:()=>scanMarket(i), loading:marketStatus[i] === 'loading' },
+          { key:'security', aria:'Security', icon:LockKeyhole, done:Boolean(p.security), core:true, locked:false, addLabel:'Add security', refreshLabel:'Refresh security', lockedLabel:'Security needs data', onClick:()=>scanSecurity(i), loading:securityStatus[i] === 'loading' },
+          { key:'holders', aria:'Holders', icon:Coins, done:Boolean(p.holders), core:false, locked:!basescanKey.trim(), addLabel:'Add holders', refreshLabel:'Refresh holders', lockedLabel:'Needs BaseScan', onClick:()=>scanHolders(i), loading:holderStatus[i] === 'loading' },
+          { key:'flow', aria:'Whale flow', icon:Coins, done:Boolean(p.transferFlow), core:false, locked:!basescanKey.trim(), addLabel:'Add flow', refreshLabel:'Refresh flow', lockedLabel:'Needs BaseScan', onClick:()=>scanWhaleFlow(i), loading:whaleFlowStatus[i] === 'loading' },
+          { key:'repo', aria:'Repo', icon:Code2, done:Boolean(p.repoUrl), core:false, locked:false, addLabel:'Add repo', refreshLabel:'Refresh repo', lockedLabel:'Repo unavailable', onClick:()=>importRepo(i), loading:repoImports[i] === 'loading' },
+          { key:'social', aria:'Farcaster', icon:Sparkles, done:Boolean(p.farcasterScan), core:false, locked:!neynarKey.trim(), addLabel:'Add social', refreshLabel:'Refresh social', lockedLabel:'Needs Neynar', onClick:()=>scanFarcaster(i), loading:farcasterStatus[i] === 'loading' },
+          { key:'deployer', aria:'Deployer', icon:ShieldAlert, done:Boolean(p.deployerScan), core:false, locked:!basescanKey.trim(), addLabel:'Add deployer', refreshLabel:'Refresh deployer', lockedLabel:'Needs BaseScan', onClick:()=>scanDeployer(i), loading:deployerStatus[i] === 'loading' }
+        ];
+        return <article className="token-card" key={i}>
+          <header><div><small>Token lane {i+1}</small><h3>{p.symbol ? `$${p.symbol}` : p.name || `Token ${i+1}`}</h3><span>{p.contract ? shortAddr(p.contract) : 'Waiting for a Base contract'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
+          <div className="token-body">
+            <div className="contract-box"><label className="field">Base contract<input aria-label="Paste Base token contract" value={p.contract} onChange={e=>update(i,'contract',e.target.value)} placeholder="0x... Base token contract" /></label><div className="button-row"><button className="solid-btn" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze token</button><button aria-label="Import only" className="quiet-btn" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import data</button></div></div>
+            <div className="modules-box"><div className="module-head"><b>Evidence modules</b><span>{evidenceModules.filter(m=>m.done).length}/7 ready</span></div><div className="mini-fields"><label className="field">GitHub repo<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="owner/repo or GitHub URL" /></label><label className="field">Deployer / owner<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label></div><div className="module-grid">{evidenceModules.map(m=>{ const Icon=m.icon; return <button key={m.key} aria-label={m.aria} className={`module-btn ${m.done?'ready':''} ${m.locked?'locked':''}`} onClick={m.onClick} disabled={m.loading}>{m.loading ? <Loader2 size={15} className="spin"/> : m.done ? <CircleCheck size={15}/> : m.locked ? <Key size={15}/> : <Icon size={15}/>}<span>{evidenceButtonLabel(m)}</span></button>})}</div></div>
           </div>
-          {[analyzeStatus[i], imports[i], marketStatus[i], repoImports[i], securityStatus[i], holderStatus[i], whaleFlowStatus[i], farcasterStatus[i], deployerStatus[i]].filter(x=>x && x !== 'loading').map((x,idx)=><p className={String(x).includes('complete') || String(x).startsWith('Imported') ? 'saas-status ok' : 'saas-status'} key={idx}>{x}</p>)}
+          {[analyzeStatus[i], imports[i], marketStatus[i], repoImports[i], securityStatus[i], holderStatus[i], whaleFlowStatus[i], farcasterStatus[i], deployerStatus[i]].filter(x=>x && x !== 'loading').map((x,idx)=><p className={String(x).includes('complete') || String(x).startsWith('Imported') ? 'status-line ok' : 'status-line warn'} key={idx}>{x}</p>)}
           {hasProjectData(p) && <div className="token-meta"><span>{p.symbol || 'TOKEN'}</span>{p.price ? <b>{money(p.price, 4)}</b> : null}{p.marketCap ? <span>{money(p.marketCap)} cap</span> : null}{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}</div>}
         </article>})}
-        </div>
-        <button className="add-token-link" onClick={addProject}>+ Compare another token</button>
-      </section>
-
-      <section className="ux-results-grid" id="verdict">
-        <div id="share-card" className={`verdict-card ux-verdict-card ${hasBattleData ? 'winner-glow' : ''}`}>
-          <div className="verdict-header"><span>Step 2 · Verdict</span><b>{hasBattleData ? 'Live result' : 'Waiting for input'}</b></div>
-          <div className="verdict-title"><div className="winner-crown"><Crown size={36}/></div><div><small>{hasBattleData ? 'TOP 1 TOKEN' : 'Empty state'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'No token analyzed yet'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)}/100` : 'Paste a real Base contract above. The dashboard will stay blank until data is imported.'}</p></div></div>
-          {hasBattleData ? <><div className="verdict-metrics"><div><strong>{winnerIntelV2.score}</strong><span>Risk score</span></div><div><strong>{winnerIntelV2.confidence}%</strong><span>Confidence</span></div><div><strong>{winnerQuality.completeness}%</strong><span>Complete</span></div></div><div className="risk-tags">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="clean-empty"><b>No fake sample loaded</b><span>No demo market cap, no fake volume, no placeholder score.</span></div>}
-        </div>
-        <div className="saas-panel evidence-panel"><div className="saas-panel-head"><div><span>Step 2 · Evidence</span><h2>Why it ranks #1</h2><p>Four readable signals before the deeper agent audit.</p></div></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Evidence appears after Analyze Token.</p>}</div>
-      </section>
-
-
-      <section className="saas-panel leaderboard-panel" id="leaderboard">
-        <div className="saas-panel-head"><div><span>Step 3 · Compare</span><h2>Token leaderboard</h2><p>Sorted by adjusted score, with confidence and data completeness visible before the detailed agent audit.</p></div><span className="mini-chip">{ranked.length || 0} ranked</span></div>
-        {hasBattleData ? <div className="leaderboard-list">{ranked.map((p, idx) => { const intel = tokenIntelligence(p); const quality = dataQuality(p); return <div className={`leaderboard-row ${idx === 0 ? 'top-one' : ''}`} key={`${projectId(p)}-${idx}`}>
-          <div className="rank-badge">{idx === 0 ? <Crown size={16}/> : `#${idx + 1}`}</div>
-          <div className="rank-token"><b>{p.symbol ? `$${p.symbol}` : p.name || shortAddr(p.contract) || 'Token'}</b><span>{p.contract ? shortAddr(p.contract) : p.name || 'Manual token'}</span></div>
-          <div><strong>{Math.round(p.scores.adjustedFinal ?? p.scores.final ?? 0)}</strong><span>Score</span></div>
-          <div><strong>{intel.confidence}%</strong><span>Confidence</span></div>
-          <div><strong>{quality.completeness}%</strong><span>Complete</span></div>
-          <div className={`rank-verdict ${scoreClass(p.scores.adjustedFinal ?? p.scores.final)}`}>{idx === 0 ? 'TOP 1 · ' : ''}{intel.label}</div>
-        </div>})}</div> : <div className="clean-empty"><b>No ranking yet</b><span>Paste multiple real Base contracts to generate the leaderboard.</span></div>}
-      </section>
-
-      <section className="saas-panel evaluation-quality-panel" id="evaluation-quality">
-        <div className="saas-panel-head"><div><span>Step 4 · Evaluation quality</span><h2>Evaluation Quality Layer</h2><p>Confidence governor, evidence gaps, verdict trace, and disagreement checks make the agents harder to fool.</p></div><span className={`mini-chip ${hasBattleData && confidenceGov.calibrated >= 70 ? 'ok' : 'danger'}`}>{hasBattleData ? `${confidenceGov.calibrated}% governed` : 'Waiting'}</span></div>
-        {hasBattleData ? <>
-          <div className="quality-grid">
-            <div className="quality-card governor"><b>Confidence Governor v2</b><strong>{confidenceGov.calibrated}%</strong><span>Raw {confidenceGov.raw}% → weighted {confidenceGov.weighted}% · cap {confidenceGov.cap}%</span><em>{confidenceGov.caps?.[0]?.reason || `Evidence tier: ${confidenceGov.tier}`}</em></div>
-            <div className="quality-card"><b>Evidence Gap Agent</b><strong>{evidenceWeight.level}</strong><span>{evidenceWeight.summary}</span><em>Next: {evidenceWeight.nextBest?.[0]?.action || 'No critical scan missing'}</em></div>
-            <div className="quality-card"><b>Verdict Trace Agent</b><strong>{Math.round(winner.scores?.adjustedFinal ?? winner.scores?.final ?? 0)}</strong><span>Security, market, holders, flow, and source reliability are traced into the final score.</span><em>{winner.scores?.penalties?.[0]?.label || winner.scores?.reasons?.safety?.[0]?.text || 'No hard penalty found.'}</em></div>
-            <div className={`quality-card ${disagreement.severity >= 2 ? 'danger' : 'ok'}`}><b>Agent Disagreement</b><strong>{disagreement.label}</strong><span>{disagreement.items?.[0]?.detail || 'No major source contradiction detected.'}</span><em>Severity {disagreement.severity}/5</em></div>
-          </div>
-          <div className="engine-v2-strip">
-            <div><b>Agent Reliability</b><strong>{agentReliability.score}%</strong><span>{agentReliability.weakest?.[0]?.name || 'No weak agent'} · {agentReliability.weakest?.[0]?.label || agentReliability.label}</span></div>
-            <div><b>Freshness Agent</b><strong>{freshness.score}/100</strong><span>{freshness.label} · {freshness.stale?.length || 0} stale</span></div>
-            <div><b>Scenario Verdict</b><strong>{scenarioVerdict.worst?.delta ?? 0}</strong><span>{scenarioVerdict.worst?.label || 'No scenario'} → {scenarioVerdict.worst?.verdict || scenarioVerdict.baseVerdict}</span></div>
-            <div><b>Contribution v2</b><strong>{contributionBreakdown.net >= 0 ? '+' : ''}{contributionBreakdown.net}</strong><span>{contributionBreakdown.positives?.[0]?.label || 'No pull-up'} / {contributionBreakdown.negatives?.[0]?.label || 'no pull-down'}</span></div>
-          </div>
-          <div className="quality-detail-grid">
-            <div><b>Next best scans</b>{evidenceWeight.nextBest?.slice(0,3).map(item => <span key={item.action}>{item.action} · {item.impact} impact · +{item.confidenceUnlock}% unlock</span>)}</div>
-            <div><b>Agent weak spots</b>{agentReliability.weakest?.slice(0,3).map(agent => <span key={agent.name}>{agent.name} · {agent.finalWeight}% · {agent.sources.join(', ') || 'no source'}</span>)}</div>
-            <div><b>Scenario changes</b>{scenarioVerdict.scenarios?.slice(0,3).map(sc => <span key={sc.id}>{sc.label}: {sc.verdict} · {sc.delta >= 0 ? '+' : ''}{sc.delta}</span>)}</div>
-            <div><b>Freshness checks</b>{freshness.sources?.filter(src => src.status !== 'Fresh').slice(0,3).map(src => <span key={src.id}>{src.name}: {src.status} · {src.ageLabel}</span>)}{!freshness.sources?.filter(src => src.status !== 'Fresh').length && <span>Core evidence is fresh.</span>}</div>
-            <div><b>Pull up</b>{contributionBreakdown.positives?.slice(0,3).map(c => <span className="good" key={`${c.label}-${c.source}`}>{c.label}: +{c.impact} · {c.reason}</span>)}</div>
-            <div><b>Pull down</b>{contributionBreakdown.negatives?.slice(0,3).map(c => <span className="warn" key={`${c.label}-${c.source}`}>{c.label}: {c.impact} · {c.reason}</span>)}</div>
-          </div>
-        </> : <p className="muted">Evaluation Quality activates after Analyze Token imports real evidence.</p>}
-      </section>
-
-
-      <section className="saas-panel agent-upgrade-panel" id="agent-council">
-        <div className="saas-panel-head"><div><span>Step 5 · Deep audit</span><h2>Agent council</h2><p>Claim/evidence/confidence signals, hard veto checks, conflict arbitration, and manipulation risk after the leaderboard.</p></div><span className={`mini-chip ${consensus.riskVeto || consensus.evidenceVeto ? 'danger' : 'ok'}`}>{consensus.riskVeto ? 'Risk veto active' : consensus.evidenceVeto ? 'Evidence veto active' : 'No veto'}</span></div>
-        {hasBattleData ? <>
-          <div className="sentinel-grid">
-            <div className={`sentinel-card ${sentinel.hardVeto ? 'danger' : 'ok'}`}><b>Risk Sentinel</b><strong>{sentinel.gate}</strong><span>{sentinel.summary}</span><em>Penalty -{sentinel.totalPenalty}</em></div>
-            <div className="sentinel-card"><b>Evidence Agent</b><strong>{audit.score}/100</strong><span>{audit.summary}</span><em>{audit.missingCritical.length} critical gaps</em></div>
-            <div className="sentinel-card"><b>Consensus</b><strong>{consensus.label}</strong><span>Disagreement: {consensus.disagreement}</span><em>{kernels.length} agents voting</em></div>
-          </div>
-          <div className="kernel-grid">{kernels.map(k => <div className="kernel-card" key={k.name}><div><b>{k.name}</b><span>{k.vote} · {Math.round(k.confidence)}%</span></div><strong>{Math.round(k.score)}</strong><p>{k.bearish?.[0] || k.bullish?.[0] || 'No major note.'}</p></div>)}</div>
-          <div className="audit-list"><b>Top audit trail</b>{audit.claims?.slice(0, 5).map(c => <span className={c.level} key={`${c.claim}-${c.source}`}>{c.claim}: {c.value} · {c.source}</span>)}</div>
-          <div className="agent-deep-grid">
-            <div><b>Red Team</b><strong>{redTeam.level}</strong><span>{redTeam.summary}</span><em>{redTeam.recommendedCheck}</em></div>
-            <div><b>Source Judge</b><strong>{sourceJudge.verdict}</strong><span>{sourceJudge.summary}</span><em>Penalty -{sourceJudge.penalty}</em></div>
-            <div><b>Next Best Action</b><strong>{nextAction.priority}</strong><span>{nextAction.nextScan}</span><em>{nextAction.expectedImpact}</em></div>
-            <div><b>Token Thesis</b><strong>{thesis.verdict}</strong><span>{thesis.bullCase}</span><em>{thesis.changeMind}</em></div>
-          </div>
-          <div className="agent-eval-grid">
-            <div><b>Evaluation Matrix</b><strong>{evalMatrix.score}/100</strong><span>{evalMatrix.summary}</span><em>Weakest: {evalMatrix.weakest?.[0]?.label || 'No weak lane'}</em></div>
-            <div><b>Calibration</b><strong>{calibrationEval.label}</strong><span>Raw {calibrationEval.rawScore} → calibrated {calibrationEval.calibratedScore}</span><em>Cap {calibrationEval.confidenceCap}% · unlock {calibrationEval.requiredEvidenceToUnlock?.[0] || 'Maintain evidence freshness'}</em></div>
-            <div><b>Comparative Judge</b><strong>{comparativeEval.margin ?? 'N/A'}</strong><span>{comparativeEval.finalRankingRationale}</span><em>{comparativeEval.runnerUpThreat}</em></div>
-            <div><b>Risk-Adjusted Upside</b><strong>{upsideEval.riskRewardRatio}</strong><span>{upsideEval.positionType}</span><em>{upsideEval.allocationHint}</em></div>
-          </div>
-          <div className="agent-eval-grid agent-verdict-grid">
-            <div><b>Outcome Agent</b><strong>{outcomeEval.predictionAccuracy}%</strong><span>{outcomeEval.summary}</span><em>{outcomeEval.weightAdjustmentSuggestion}</em></div>
-            <div><b>Conflict Arbiter</b><strong>{conflictEval.label}</strong><span>Trust: {conflictEval.trustedSide}</span><em>Haircut -{conflictEval.scoreHaircut} · Review {conflictEval.manualReviewRequired ? 'Yes' : 'No'}</em></div>
-            <div><b>Manipulation Pattern</b><strong>{manipulationEval.manipulationRisk}/100</strong><span>{manipulationEval.label}</span><em>{manipulationEval.exitRiskWindow}</em></div>
-          </div>
-        </> : <p className="muted">Agent council activates after real token data is imported.</p>}
-      </section>
-
-      <section className="saas-panel report-panel" id="reports">
-        <div className="saas-panel-head"><div><span>Step 6 · Export</span><h2>Export report</h2><p>Download Markdown/JSON after reviewing the verdict. Reports include ranking, evidence, source coverage, gaps, and next verification tasks.</p></div><span className="mini-chip">MD + JSON</span></div>
-        <div className="report-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button><button onClick={exportCard}><Download size={16}/> Export Card</button><button onClick={saveBattle}><Save size={16}/> Save Battle</button></div>
-        {reportStatus && <p className="saas-status ok">{reportStatus}</p>}{saveStatus && <p className="saas-status ok">{saveStatus}</p>}
-      </section>
-
-      <details className="saas-panel sources-panel ux-advanced" id="sources">
-        <summary><span>Advanced sources and bulk tools</span><small>Optional API keys, bulk import, and deeper scans</small></summary>
-        <div className="secondary-grid"><label className="saas-field">Optional BaseScan API key<input aria-label="Optional BaseScan API key" type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/></label><label className="saas-field">Optional Neynar API key<input aria-label="Optional Neynar API key" type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/></label></div>
-        <div className="tool-row"><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear BaseScan</button><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear Neynar</button></div>
-        <label className="saas-field">Bulk contracts mirror<textarea aria-label="Paste Base contracts one per line" value={bulkText} onChange={e=>setBulkText(e.target.value)} placeholder="Paste Base contracts, one per line" /></label>
-        <div className="tool-row"><button onClick={bulkImport} disabled={bulkLoading}>{bulkLoading ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import Battle</button><button onClick={scanAllMarket}>Cross-check Market</button><button onClick={scanAllSecurity}>Scan Security</button><button onClick={scanAllHolders}>Scan Holders</button><button onClick={scanAllDeployers}>Scan Deployers</button><button onClick={scanAllWhaleFlow}>Whale Flow</button><button onClick={scanAllFarcaster}>Farcaster</button></div>
-        {bulkStatus && <p className={bulkStatus.includes('failed') || bulkStatus.startsWith('Paste') ? 'saas-status' : 'saas-status ok'}>{bulkStatus}</p>}
-      </details>
     </section>
+
+    <section className="result-grid" id="verdict">
+      <div id="share-card" className={`verdict-card ${hasBattleData ? 'winner-glow' : ''}`}><span>Step 2 · Verdict</span><small>{hasBattleData ? 'TOP 1 TOKEN' : 'Empty state'}</small><h2>{hasBattleData ? (winner.symbol ? `$${winner.symbol}` : winner.name) : 'No token analyzed yet'}</h2><p>{hasBattleData ? `${winner.name} · ${verdict(winner.scores.final)} · ${Math.round(winner.scores.final)}/100` : 'No fake sample loaded. Import real Base data first.'}</p>{hasBattleData ? <><div className="metric-row"><div><strong>{winnerIntelV2.score}</strong><span>Risk score</span></div><div><strong>{winnerIntelV2.confidence}%</strong><span>Confidence</span></div><div><strong>{winnerQuality.completeness}%</strong><span>Complete</span></div></div><div className="risk-tags">{winnerIntelV2.reasons.map(flag=><span key={flag.label} className={flag.level}>{flag.label}</span>)}</div></> : <div className="empty-box"><b>No fake sample loaded</b><span>No demo market cap, no fake volume, no placeholder score.</span></div>}</div>
+      <div className="desk-card"><div className="section-title"><span>Step 2 · Evidence</span><h2>Why it ranks #1</h2><p>Four readable signals before the deeper agent audit.</p></div>{hasBattleData ? <div className="evidence-list">{['builder','market','meme','safety'].map(k=><div key={k}><b>{k}</b><span>{winner.scores.reasons[k]?.[0]?.text || 'No major note.'}</span><em>{Math.round(winner.scores[k])}</em></div>)}</div> : <p className="muted">Evidence appears after Analyze Token.</p>}</div>
+    </section>
+
+    <section className="desk-card" id="leaderboard"><div className="section-title"><span>Step 3 · Compare</span><h2>Token leaderboard</h2><p>Sorted by adjusted score with confidence and completeness visible.</p></div>{hasBattleData ? <div className="leaderboard-list">{ranked.map((p,idx)=>{ const intel=tokenIntelligence(p); const quality=dataQuality(p); return <div className={`leaderboard-row ${idx===0?'top-one':''}`} key={`${projectId(p)}-${idx}`}><div className="rank-badge">{idx===0 ? <Crown size={16}/> : `#${idx+1}`}</div><div className="rank-token"><b>{p.symbol ? `$${p.symbol}` : p.name || shortAddr(p.contract) || 'Token'}</b><span>{p.contract ? shortAddr(p.contract) : p.name || 'Manual token'}</span></div><div><strong>{Math.round(p.scores.adjustedFinal ?? p.scores.final ?? 0)}</strong><span>Score</span></div><div><strong>{intel.confidence}%</strong><span>Confidence</span></div><div><strong>{quality.completeness}%</strong><span>Complete</span></div><div className={`rank-verdict ${scoreClass(p.scores.adjustedFinal ?? p.scores.final)}`}>{idx===0?'TOP 1 · ':''}{intel.label}</div></div>})}</div> : <div className="empty-box"><b>No ranking yet</b><span>Paste multiple real Base contracts to generate the leaderboard.</span></div>}</section>
+
+    <section className="desk-card evaluation-quality-panel" id="evaluation-quality"><div className="section-title"><span>Step 4 · Evaluation quality</span><h2>Evaluation Quality Layer</h2><p>Confidence, freshness, disagreement, and contribution tracing.</p></div>{hasBattleData ? <><div className="quality-grid"><div><b>Confidence Governor v2</b><strong>{confidenceGov.calibrated}%</strong><span>Raw {confidenceGov.raw}% → weighted {confidenceGov.weighted}%</span></div><div><b>Evidence Gap Agent</b><strong>{evidenceWeight.level}</strong><span>{evidenceWeight.summary}</span></div><div><b>Verdict Trace Agent</b><strong>{Math.round(winner.scores?.adjustedFinal ?? winner.scores?.final ?? 0)}</strong><span>{winner.scores?.penalties?.[0]?.label || winner.scores?.reasons?.safety?.[0]?.text || 'No hard penalty found.'}</span></div><div><b>Agent Disagreement</b><strong>{disagreement.label}</strong><span>{disagreement.items?.[0]?.detail || 'No major source contradiction detected.'}</span></div><div><b>Agent Reliability</b><strong>{agentReliability.score}%</strong><span>{agentReliability.weakest?.[0]?.name || 'No weak agent'}</span></div><div><b>Freshness Agent</b><strong>{freshness.score}/100</strong><span>{freshness.label}</span></div><div><b>Scenario Verdict</b><strong>{scenarioVerdict.worst?.delta ?? 0}</strong><span>{scenarioVerdict.worst?.label || 'No scenario'}</span></div><div><b>Contribution v2</b><strong>{contributionBreakdown.net >= 0 ? '+' : ''}{contributionBreakdown.net}</strong><span>{contributionBreakdown.positives?.[0]?.label || 'No pull-up'} / {contributionBreakdown.negatives?.[0]?.label || 'no pull-down'}</span></div></div></> : <p className="muted">Evaluation Quality activates after Analyze Token imports real evidence.</p>}</section>
+
+    <section className="desk-card" id="agent-council"><div className="section-title"><span>Step 5 · Deep audit</span><h2>Agent council</h2><p>Hard veto checks, conflict arbitration, manipulation risk, and explainable agent votes.</p></div>{hasBattleData ? <><div className="quality-grid compact"><div><b>Risk Sentinel</b><strong>{sentinel.gate}</strong><span>{sentinel.summary}</span></div><div><b>Evidence Agent</b><strong>{audit.score}/100</strong><span>{audit.summary}</span></div><div><b>Red Team</b><strong>{redTeam.level}</strong><span>{redTeam.summary}</span></div><div><b>Source Judge</b><strong>{sourceJudge.verdict}</strong><span>{sourceJudge.summary}</span></div><div><b>Next Best Action</b><strong>{nextAction.priority}</strong><span>{nextAction.nextScan}</span></div><div><b>Token Thesis</b><strong>{thesis.verdict}</strong><span>{thesis.bullCase}</span></div><div><b>Evaluation Matrix</b><strong>{evalMatrix.score}/100</strong><span>{evalMatrix.summary}</span></div><div><b>Outcome Agent</b><strong>{outcomeEval.predictionAccuracy}%</strong><span>{outcomeEval.summary}</span></div><div><b>Conflict Arbiter</b><strong>{conflictEval.label}</strong><span>Trust: {conflictEval.trustedSide}</span></div><div><b>Manipulation Pattern</b><strong>{manipulationEval.manipulationRisk}/100</strong><span>{manipulationEval.label}</span></div><div><b>Calibration</b><strong>{calibrationEval.label}</strong><span>Raw {calibrationEval.rawScore} → calibrated {calibrationEval.calibratedScore}</span></div><div><b>Comparative Judge</b><strong>{comparativeEval.margin ?? 'N/A'}</strong><span>{comparativeEval.finalRankingRationale}</span></div><div><b>Risk-Adjusted Upside</b><strong>{upsideEval.riskRewardRatio}</strong><span>{upsideEval.positionType}</span></div></div><div className="kernel-grid">{kernels.map(k=><div className="kernel-card" key={k.name}><b>{k.name}</b><strong>{Math.round(k.score)}</strong><span>{k.vote} · {Math.round(k.confidence)}%</span><p>{k.bearish?.[0] || k.bullish?.[0] || 'No major note.'}</p></div>)}</div></> : <p className="muted">Agent council activates after real token data is imported.</p>}</section>
+
+    <section className="desk-card" id="reports"><div className="section-title"><span>Step 6 · Export</span><h2>Export report</h2><p>Reports include ranking, evidence, source coverage, gaps, and next verification tasks.</p></div><div className="button-row"><button className="quiet-btn" onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button className="solid-btn" onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button className="solid-btn" onClick={downloadJsonReport}><Download size={16}/> Download JSON</button><button className="quiet-btn" onClick={exportCard}><Download size={16}/> Export Card</button><button className="quiet-btn" onClick={saveBattle}><Save size={16}/> Save Battle</button></div>{reportStatus && <p className="status-line ok">{reportStatus}</p>}{saveStatus && <p className="status-line ok">{saveStatus}</p>}</section>
+
+    <details className="desk-card advanced"><summary><span>Advanced sources and bulk tools</span><small>Optional API keys and batch scans</small></summary><div className="mini-fields"><label className="field">Optional BaseScan API key<input aria-label="Optional BaseScan API key" type="password" value={basescanKey} onChange={e=>setBasescanKey(e.target.value)} placeholder="Optional BaseScan API key for holder/flow scans"/></label><label className="field">Optional Neynar API key<input aria-label="Optional Neynar API key" type="password" value={neynarKey} onChange={e=>setNeynarKey(e.target.value)} placeholder="Optional Neynar API key for Farcaster scans"/></label></div><div className="button-row"><button onClick={saveBasescanKey}>Save BaseScan Key</button><button onClick={clearBasescanKey}>Clear BaseScan</button><button onClick={saveNeynarKey}>Save Neynar Key</button><button onClick={clearNeynarKey}>Clear Neynar</button><button onClick={scanAllMarket}>Cross-check Market</button><button onClick={scanAllSecurity}>Scan Security</button><button onClick={scanAllHolders}>Scan Holders</button><button onClick={scanAllDeployers}>Scan Deployers</button><button onClick={scanAllWhaleFlow}>Whale Flow</button><button onClick={scanAllFarcaster}>Farcaster</button></div></details>
   </main>;
 }
 
