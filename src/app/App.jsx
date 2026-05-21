@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Coins, Radio, Trophy, Zap, Search, ExternalLink, Loader2, Code2, Copy, Check, Save, RotateCcw, Trash2, KeyRound, Brain, LockKeyhole, Crown } from 'lucide-react';
+import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Coins, Radio, Trophy, Zap, Search, ExternalLink, Loader2, Code2, Copy, Check, Save, RotateCcw, Trash2, KeyRound, Brain, LockKeyhole, Crown, RefreshCw, PlusCircle, CircleCheck, Key } from 'lucide-react';
 const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
 import { toPng } from 'html-to-image';
 import '../styles.css';
 import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, outcomeAgent, evidenceConflictArbiter, manipulationPatternAgent, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
 
 const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
+const evidenceButtonLabel = ({ done, locked, refreshLabel, addLabel, lockedLabel }) => locked ? lockedLabel : (done ? refreshLabel : addLabel);
 
 function App() {
   const [projects, setProjects] = useState(defaults);
@@ -511,7 +512,19 @@ function App() {
           </aside>
         </div>
         <div className="token-stack">
-        {projects.map((p,i)=><article className="token-card ux-token-card" key={i}>
+        {projects.map((p,i)=>{
+          const evidenceModules = [
+            { key:'market', aria:'Market', icon:TrendingUp, done:Boolean(p.gecko), core:true, locked:false, addLabel:'Add market', refreshLabel:'Refresh market', lockedLabel:'Market needs data', onClick:()=>scanMarket(i), loading:marketStatus[i] === 'loading', title:p.gecko ? 'Market was included by Analyze token. Refresh if price/liquidity changed.' : 'Add current market cross-check.' },
+            { key:'security', aria:'Security', icon:LockKeyhole, done:Boolean(p.security), core:true, locked:false, addLabel:'Add security', refreshLabel:'Refresh security', lockedLabel:'Security needs data', onClick:()=>scanSecurity(i), loading:securityStatus[i] === 'loading', title:p.security ? 'Security was included by Analyze token. Refresh if contract data changed.' : 'Add token security scan.' },
+            { key:'holders', aria:'Holders', icon:Coins, done:Boolean(p.holders), core:false, locked:!basescanKey.trim(), addLabel:'Add holders', refreshLabel:'Refresh holders', lockedLabel:'Needs BaseScan', onClick:()=>scanHolders(i), loading:holderStatus[i] === 'loading', title:basescanKey.trim() ? 'Add or refresh holder distribution.' : 'Add BaseScan API key to unlock holder scan.' },
+            { key:'flow', aria:'Whale flow', icon:Coins, done:Boolean(p.transferFlow), core:false, locked:!basescanKey.trim(), addLabel:'Add flow', refreshLabel:'Refresh flow', lockedLabel:'Needs BaseScan', onClick:()=>scanWhaleFlow(i), loading:whaleFlowStatus[i] === 'loading', title:basescanKey.trim() ? 'Add or refresh whale transfer flow.' : 'Add BaseScan API key to unlock whale flow.' },
+            { key:'repo', icon:Code2, done:Boolean(p.repoUrl), core:false, locked:false, addLabel:'Add repo', refreshLabel:'Refresh repo', lockedLabel:'Repo unavailable', onClick:()=>importRepo(i), loading:repoImports[i] === 'loading', aria:'Repo', title:p.repoUrl ? 'Repo already imported. Click to refresh.' : 'Add GitHub repo evidence.' },
+            { key:'social', aria:'Farcaster', icon:Sparkles, done:Boolean(p.farcasterScan), core:false, locked:!neynarKey.trim(), addLabel:'Add social', refreshLabel:'Refresh social', lockedLabel:'Needs Neynar', onClick:()=>scanFarcaster(i), loading:farcasterStatus[i] === 'loading', title:neynarKey.trim() ? 'Add or refresh Farcaster signal.' : 'Add Neynar API key to unlock Farcaster scan.' },
+            { key:'deployer', aria:'Deployer', icon:ShieldAlert, done:Boolean(p.deployerScan), core:false, locked:!basescanKey.trim(), addLabel:'Add deployer', refreshLabel:'Refresh deployer', lockedLabel:'Needs BaseScan', onClick:()=>scanDeployer(i), loading:deployerStatus[i] === 'loading', title:basescanKey.trim() ? 'Add or refresh deployer history.' : 'Add BaseScan API key to unlock deployer scan.' }
+          ];
+          const readyEvidence = evidenceModules.filter(m => m.done).length;
+          const coreReady = evidenceModules.filter(m => m.core && m.done).length;
+          return <article className="token-card ux-token-card" key={i}>
           <header><div><small>Manual verification lane</small><h3>{p.symbol ? `$${p.symbol}` : p.name || `Token ${i+1}`}</h3><span>{p.contract ? shortAddr(p.contract) : 'Use when a token needs individual checks'}</span></div><b>{hasProjectData(p) ? Math.round(p.scores?.adjustedFinal ?? p.scores?.final ?? scoreProject(p).adjustedFinal ?? 0) : '—'}</b></header>
           <div className="manual-scan-grid">
             <div className="manual-contract-panel">
@@ -519,20 +532,23 @@ function App() {
               <div className="manual-actions"><button className="saas-btn primary big-cta" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze token</button><button aria-label="Import only" className="saas-btn secondary-cta" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import data</button></div>
             </div>
             <div className="evidence-source-panel">
-              <div className="ux-details-title">Add / refresh evidence</div>
-              <p className="evidence-helper">Analyze token already runs core market + security checks. Use these only to refresh or add missing sources.</p>
+              <div className="evidence-panel-head"><div><div className="ux-details-title">Evidence modules</div><p className="evidence-helper">Analyze token runs the core checks first. Use modules below only to refresh data or unlock deeper sources.</p></div><span className="evidence-count">{readyEvidence}/7 ready</span></div>
+              <div className="evidence-core-strip"><span className={coreReady === 2 ? 'ready' : ''}>Core: market + security</span><span className={basescanKey.trim() ? 'ready' : 'locked'}>{basescanKey.trim() ? 'BaseScan enabled' : 'BaseScan locked'}</span><span className={neynarKey.trim() ? 'ready' : 'locked'}>{neynarKey.trim() ? 'Social enabled' : 'Social locked'}</span></div>
               <div className="secondary-grid evidence-fields">
                 <label className="saas-field">GitHub repo<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="owner/repo or GitHub URL" /></label>
                 <label className="saas-field">Deployer / owner<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label>
               </div>
-              <div className="tool-row compact-tools evidence-tools" aria-label="Optional scan tools">
-                <button className={p.gecko ? 'has-evidence' : ''} title={p.gecko ? 'Already included by Analyze token. Click to refresh market data.' : 'Add market data'} onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}><TrendingUp size={16}/> {p.gecko ? 'Refresh market' : 'Market'}</button><button className={p.security ? 'has-evidence' : ''} title={p.security ? 'Already included by Analyze token. Click to refresh security.' : 'Add security scan'} onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}><LockKeyhole size={16}/> {p.security ? 'Refresh security' : 'Security'}</button><button className={p.holders ? 'has-evidence' : ''} title={p.holders ? 'Already included by Analyze token. Click to refresh holders.' : 'Add holder scan'} onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}><Coins size={16}/> {p.holders ? 'Refresh holders' : 'Holders'}</button><button className={p.transferFlow ? 'has-evidence' : ''} title={p.transferFlow ? 'Already included by Analyze token. Click to refresh whale flow.' : 'Add whale flow scan'} onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}><Coins size={16}/> {p.transferFlow ? 'Refresh flow' : 'Whale flow'}</button><button className={p.repoUrl ? 'has-evidence' : ''} aria-label="Repo" title={p.repoUrl ? 'Repo already imported. Click to refresh.' : 'Add GitHub repo evidence'} onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}><Code2 size={16}/> {p.repoUrl ? 'Refresh repo' : 'Repo'}</button><button className={p.farcasterScan ? 'has-evidence' : ''} onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}><Sparkles size={16}/> {p.farcasterScan ? 'Refresh social' : 'Farcaster'}</button><button className={p.deployerScan ? 'has-evidence' : ''} onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}><ShieldAlert size={16}/> {p.deployerScan ? 'Refresh deployer' : 'Deployer'}</button>
+              <div className="evidence-module-grid" aria-label="Optional scan tools">
+                {evidenceModules.map(m => { const Icon = m.icon; return <button key={m.key} aria-label={m.aria || m.addLabel} className={`evidence-module ${m.done ? 'has-evidence' : ''} ${m.locked ? 'is-locked' : ''}`} title={m.title} onClick={m.onClick} disabled={m.loading}>
+                  <span className="evidence-module-icon">{m.loading ? <Loader2 size={16} className="spin"/> : m.done ? <CircleCheck size={16}/> : m.locked ? <Key size={16}/> : <Icon size={16}/>}</span>
+                  <span><b>{evidenceButtonLabel(m)}</b><em>{m.done ? 'Included · click to refresh' : m.locked ? 'Add API key to unlock' : m.core ? 'Core scan source' : 'Optional evidence'}</em></span>
+                </button>})}
               </div>
             </div>
           </div>
           {[analyzeStatus[i], imports[i], marketStatus[i], repoImports[i], securityStatus[i], holderStatus[i], whaleFlowStatus[i], farcasterStatus[i], deployerStatus[i]].filter(x=>x && x !== 'loading').map((x,idx)=><p className={String(x).includes('complete') || String(x).startsWith('Imported') ? 'saas-status ok' : 'saas-status'} key={idx}>{x}</p>)}
           {hasProjectData(p) && <div className="token-meta"><span>{p.symbol || 'TOKEN'}</span>{p.price ? <b>{money(p.price, 4)}</b> : null}{p.marketCap ? <span>{money(p.marketCap)} cap</span> : null}{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noreferrer">Repo <ExternalLink size={12}/></a>}{p.pairUrl && <a href={p.pairUrl} target="_blank" rel="noreferrer">Chart <ExternalLink size={12}/></a>}</div>}
-        </article>)}
+        </article>})}
         </div>
         <button className="add-token-link" onClick={addProject}>+ Compare another token</button>
       </section>
