@@ -25,7 +25,7 @@ test.afterEach(async () => {
 test('loads dashboard, edits battle, saves memory, exports reports', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Base token battles/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Start with real contracts' })).toBeVisible();
-  await expect(page.getByText('Step 5 · Export')).toBeVisible();
+  await expect(page.getByText('Step 6 · Export')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Token leaderboard' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Agent council' })).toBeVisible();
 
@@ -73,7 +73,7 @@ test('multi-contract entry shows ranking table and top one effect', async ({ pag
   await expect(page.locator('.leaderboard-row.top-one')).toHaveCount(1);
   await expect(page.locator('.winner-glow')).toBeVisible();
   await expect(page.getByText(/TOP 1 TOKEN/i)).toBeVisible();
-  await expect(page.getByText(/Step 4 · Deep audit/i)).toBeVisible();
+  await expect(page.getByText(/Step 5 · Deep audit/i)).toBeVisible();
   await expect(page.getByText(/Risk Sentinel/i).first()).toBeVisible();
   await expect(page.getByText(/Evidence Agent/i).first()).toBeVisible();
   await expect(page.getByText(/Red Team/i).first()).toBeVisible();
@@ -90,7 +90,7 @@ test('multi-contract entry shows ranking table and top one effect', async ({ pag
 });
 
 test('core export section remains interactive in simplified UI', async ({ page }) => {
-  await page.getByText('Step 5 · Export').scrollIntoViewIfNeeded();
+  await page.getByText('Step 6 · Export').scrollIntoViewIfNeeded();
   await expect(page.getByText(/Reports include ranking/)).toBeVisible();
   await page.getByRole('button', { name: /Download JSON/i }).click();
   await expect(page.getByText(/downloaded/i).first()).toBeVisible();
@@ -187,7 +187,7 @@ test.describe('responsive smoke', () => {
       await page.reload();
       await expect(page.getByRole('heading', { name: /Base token battles/i })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Start with real contracts' })).toBeVisible();
-      await page.getByText('Step 5 · Export').scrollIntoViewIfNeeded();
+      await page.getByText('Step 6 · Export').scrollIntoViewIfNeeded();
       await expect(page.getByRole('button', { name: /Download MD/i })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(12);

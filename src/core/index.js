@@ -1706,8 +1706,8 @@ export function agentKernel(p, runner) {
     },
     {
       name: 'Outcome Agent', weight: weights.agents['Outcome Agent'], score: outcome.score, vote: outcome.score >= 68 ? 'Bullish' : outcome.score >= 45 ? 'Neutral' : 'Bearish', confidence: clamp(45 + outcome.sampleSize * 8),
-      bullish: [outcome.bestAgents[0] && `Best historical agent: ${outcome.bestAgents[0].agent} ${outcome.bestAgents[0].accuracy}%`].filter(Boolean),
-      bearish: [outcome.sampleSize === 0 && 'No resolved outcome history yet', outcome.falsePositiveRate > 0 && `False positive rate ${outcome.falsePositiveRate}%`, outcome.weakestAgents[0] && `Weakest agent: ${outcome.weakestAgents[0].agent} ${outcome.weakestAgents[0].accuracy}%`].filter(Boolean),
+      bullish: [outcome.bestAgents?.[0] && `Best historical agent: ${outcome.bestAgents[0].agent} ${outcome.bestAgents[0].accuracy}%`].filter(Boolean),
+      bearish: [outcome.sampleSize === 0 && 'No resolved outcome history yet', outcome.falsePositiveRate > 0 && `False positive rate ${outcome.falsePositiveRate}%`, outcome.weakestAgents?.[0] && `Weakest agent: ${outcome.weakestAgents[0].agent} ${outcome.weakestAgents[0].accuracy}%`].filter(Boolean),
       changeMind: outcome.weightAdjustmentSuggestion
     },
     {
@@ -2347,7 +2347,7 @@ async function callOpenAiReport({ apiKey, model, winner, runner, reports, verdic
   return data.choices?.[0]?.message?.content || 'No analysis returned.';
 }
 export function agentReports(winner, runner) {
-  const s = winner.scores;
+  const s = winner.scores || scoreProject(winner);
   const intel = getRiskIntel(winner);
   const quality = dataQuality(winner);
   const weak = topWeakScore(s);
@@ -2386,8 +2386,8 @@ export function agentReports(winner, runner) {
     },
     {
       name: 'Outcome Agent', weight: weights.agents['Outcome Agent'], score: outcome.score, vote: outcome.score >= 68 ? 'Bullish' : outcome.score >= 45 ? 'Neutral' : 'Bearish', confidence: clamp(45 + outcome.sampleSize * 8),
-      bullish: [outcome.bestAgents[0] && `Best historical agent: ${outcome.bestAgents[0].agent} ${outcome.bestAgents[0].accuracy}%`].filter(Boolean),
-      bearish: [outcome.sampleSize === 0 && 'No resolved outcome history yet', outcome.falsePositiveRate > 0 && `False positive rate ${outcome.falsePositiveRate}%`, outcome.weakestAgents[0] && `Weakest agent: ${outcome.weakestAgents[0].agent} ${outcome.weakestAgents[0].accuracy}%`].filter(Boolean),
+      bullish: [outcome.bestAgents?.[0] && `Best historical agent: ${outcome.bestAgents[0].agent} ${outcome.bestAgents[0].accuracy}%`].filter(Boolean),
+      bearish: [outcome.sampleSize === 0 && 'No resolved outcome history yet', outcome.falsePositiveRate > 0 && `False positive rate ${outcome.falsePositiveRate}%`, outcome.weakestAgents?.[0] && `Weakest agent: ${outcome.weakestAgents[0].agent} ${outcome.weakestAgents[0].accuracy}%`].filter(Boolean),
       changeMind: outcome.weightAdjustmentSuggestion
     },
     {

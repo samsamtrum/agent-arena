@@ -4,7 +4,7 @@ import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Co
 const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
 import { toPng } from 'html-to-image';
 import '../styles.css';
-import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, outcomeAgent, evidenceConflictArbiter, manipulationPatternAgent, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, evidenceWeighting, confidenceCalibration, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, outcomeAgent, evidenceConflictArbiter, manipulationPatternAgent, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
 
 const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 const evidenceButtonLabel = ({ done, locked, refreshLabel, addLabel, lockedLabel }) => locked ? lockedLabel : (done ? refreshLabel : addLabel);
@@ -68,6 +68,9 @@ function App() {
   const winnerIntelV2 = useMemo(() => tokenIntelligence(winner), [winner]);
   const sentinel = useMemo(() => riskSentinel(winner), [winner]);
   const audit = useMemo(() => evidenceAudit(winner), [winner]);
+  const evidenceWeight = useMemo(() => evidenceWeighting(winner), [winner]);
+  const confidenceGov = useMemo(() => confidenceCalibration(winner, winner.scores?.confidence), [winner]);
+  const disagreement = useMemo(() => contradictionDetector(winner), [winner]);
   const redTeam = useMemo(() => redTeamChallenge(winner, ranked[1]), [winner, ranked]);
   const sourceJudge = useMemo(() => crossSourceJudge(winner), [winner]);
   const nextAction = useMemo(() => nextBestAction(winner, ranked), [winner, ranked]);
@@ -575,17 +578,34 @@ function App() {
         </div>})}</div> : <div className="clean-empty"><b>No ranking yet</b><span>Paste multiple real Base contracts to generate the leaderboard.</span></div>}
       </section>
 
+      <section className="saas-panel evaluation-quality-panel" id="evaluation-quality">
+        <div className="saas-panel-head"><div><span>Step 4 · Evaluation quality</span><h2>Evaluation Quality Layer</h2><p>Confidence governor, evidence gaps, verdict trace, and disagreement checks make the agents harder to fool.</p></div><span className={`mini-chip ${hasBattleData && confidenceGov.calibrated >= 70 ? 'ok' : 'danger'}`}>{hasBattleData ? `${confidenceGov.calibrated}% governed` : 'Waiting'}</span></div>
+        {hasBattleData ? <>
+          <div className="quality-grid">
+            <div className="quality-card governor"><b>Confidence Governor v2</b><strong>{confidenceGov.calibrated}%</strong><span>Raw {confidenceGov.raw}% → weighted {confidenceGov.weighted}% · cap {confidenceGov.cap}%</span><em>{confidenceGov.caps?.[0]?.reason || `Evidence tier: ${confidenceGov.tier}`}</em></div>
+            <div className="quality-card"><b>Evidence Gap Agent</b><strong>{evidenceWeight.level}</strong><span>{evidenceWeight.summary}</span><em>Next: {evidenceWeight.nextBest?.[0]?.action || 'No critical scan missing'}</em></div>
+            <div className="quality-card"><b>Verdict Trace Agent</b><strong>{Math.round(winner.scores?.adjustedFinal ?? winner.scores?.final ?? 0)}</strong><span>Security, market, holders, flow, and source reliability are traced into the final score.</span><em>{winner.scores?.penalties?.[0]?.label || winner.scores?.reasons?.safety?.[0]?.text || 'No hard penalty found.'}</em></div>
+            <div className={`quality-card ${disagreement.severity >= 2 ? 'danger' : 'ok'}`}><b>Agent Disagreement</b><strong>{disagreement.label}</strong><span>{disagreement.items?.[0]?.detail || 'No major source contradiction detected.'}</span><em>Severity {disagreement.severity}/5</em></div>
+          </div>
+          <div className="quality-detail-grid">
+            <div><b>Next best scans</b>{evidenceWeight.nextBest?.slice(0,3).map(item => <span key={item.action}>{item.action} · {item.impact} impact · +{item.confidenceUnlock}% unlock</span>)}</div>
+            <div><b>Confidence caps</b>{confidenceGov.caps?.slice(0,3).map(cap => <span key={`${cap.cap}-${cap.reason}`}>≤{cap.cap}% · {cap.reason}</span>)}{!confidenceGov.caps?.length && <span>No active cap from current evidence.</span>}</div>
+            <div><b>Disagreement resolution</b>{disagreement.items?.slice(0,3).map(flag => <span className={flag.level} key={flag.label}>{flag.label}: {flag.detail}</span>)}{!disagreement.items?.length && <span>No major source contradiction detected.</span>}</div>
+          </div>
+        </> : <p className="muted">Evaluation Quality activates after Analyze Token imports real evidence.</p>}
+      </section>
+
 
       <section className="saas-panel agent-upgrade-panel" id="agent-council">
-        <div className="saas-panel-head"><div><span>Step 4 · Deep audit</span><h2>Agent council</h2><p>Claim/evidence/confidence signals, hard veto checks, conflict arbitration, and manipulation risk after the leaderboard.</p></div><span className={`mini-chip ${consensus.riskVeto || consensus.evidenceVeto ? 'danger' : 'ok'}`}>{consensus.riskVeto ? 'Risk veto active' : consensus.evidenceVeto ? 'Evidence veto active' : 'No veto'}</span></div>
+        <div className="saas-panel-head"><div><span>Step 5 · Deep audit</span><h2>Agent council</h2><p>Claim/evidence/confidence signals, hard veto checks, conflict arbitration, and manipulation risk after the leaderboard.</p></div><span className={`mini-chip ${consensus.riskVeto || consensus.evidenceVeto ? 'danger' : 'ok'}`}>{consensus.riskVeto ? 'Risk veto active' : consensus.evidenceVeto ? 'Evidence veto active' : 'No veto'}</span></div>
         {hasBattleData ? <>
           <div className="sentinel-grid">
             <div className={`sentinel-card ${sentinel.hardVeto ? 'danger' : 'ok'}`}><b>Risk Sentinel</b><strong>{sentinel.gate}</strong><span>{sentinel.summary}</span><em>Penalty -{sentinel.totalPenalty}</em></div>
             <div className="sentinel-card"><b>Evidence Agent</b><strong>{audit.score}/100</strong><span>{audit.summary}</span><em>{audit.missingCritical.length} critical gaps</em></div>
             <div className="sentinel-card"><b>Consensus</b><strong>{consensus.label}</strong><span>Disagreement: {consensus.disagreement}</span><em>{kernels.length} agents voting</em></div>
           </div>
-          <div className="kernel-grid">{kernels.map(k => <div className="kernel-card" key={k.name}><div><b>{k.name}</b><span>{k.vote} · {Math.round(k.confidence)}%</span></div><strong>{Math.round(k.score)}</strong><p>{k.bearish[0] || k.bullish[0]}</p></div>)}</div>
-          <div className="audit-list"><b>Top audit trail</b>{audit.claims.slice(0, 5).map(c => <span className={c.level} key={`${c.claim}-${c.source}`}>{c.claim}: {c.value} · {c.source}</span>)}</div>
+          <div className="kernel-grid">{kernels.map(k => <div className="kernel-card" key={k.name}><div><b>{k.name}</b><span>{k.vote} · {Math.round(k.confidence)}%</span></div><strong>{Math.round(k.score)}</strong><p>{k.bearish?.[0] || k.bullish?.[0] || 'No major note.'}</p></div>)}</div>
+          <div className="audit-list"><b>Top audit trail</b>{audit.claims?.slice(0, 5).map(c => <span className={c.level} key={`${c.claim}-${c.source}`}>{c.claim}: {c.value} · {c.source}</span>)}</div>
           <div className="agent-deep-grid">
             <div><b>Red Team</b><strong>{redTeam.level}</strong><span>{redTeam.summary}</span><em>{redTeam.recommendedCheck}</em></div>
             <div><b>Source Judge</b><strong>{sourceJudge.verdict}</strong><span>{sourceJudge.summary}</span><em>Penalty -{sourceJudge.penalty}</em></div>
@@ -593,8 +613,8 @@ function App() {
             <div><b>Token Thesis</b><strong>{thesis.verdict}</strong><span>{thesis.bullCase}</span><em>{thesis.changeMind}</em></div>
           </div>
           <div className="agent-eval-grid">
-            <div><b>Evaluation Matrix</b><strong>{evalMatrix.score}/100</strong><span>{evalMatrix.summary}</span><em>Weakest: {evalMatrix.weakest[0]?.label}</em></div>
-            <div><b>Calibration</b><strong>{calibrationEval.label}</strong><span>Raw {calibrationEval.rawScore} → calibrated {calibrationEval.calibratedScore}</span><em>Cap {calibrationEval.confidenceCap}% · unlock {calibrationEval.requiredEvidenceToUnlock[0]}</em></div>
+            <div><b>Evaluation Matrix</b><strong>{evalMatrix.score}/100</strong><span>{evalMatrix.summary}</span><em>Weakest: {evalMatrix.weakest?.[0]?.label || 'No weak lane'}</em></div>
+            <div><b>Calibration</b><strong>{calibrationEval.label}</strong><span>Raw {calibrationEval.rawScore} → calibrated {calibrationEval.calibratedScore}</span><em>Cap {calibrationEval.confidenceCap}% · unlock {calibrationEval.requiredEvidenceToUnlock?.[0] || 'Maintain evidence freshness'}</em></div>
             <div><b>Comparative Judge</b><strong>{comparativeEval.margin ?? 'N/A'}</strong><span>{comparativeEval.finalRankingRationale}</span><em>{comparativeEval.runnerUpThreat}</em></div>
             <div><b>Risk-Adjusted Upside</b><strong>{upsideEval.riskRewardRatio}</strong><span>{upsideEval.positionType}</span><em>{upsideEval.allocationHint}</em></div>
           </div>
@@ -607,7 +627,7 @@ function App() {
       </section>
 
       <section className="saas-panel report-panel" id="reports">
-        <div className="saas-panel-head"><div><span>Step 5 · Export</span><h2>Export report</h2><p>Download Markdown/JSON after reviewing the verdict. Reports include ranking, evidence, source coverage, gaps, and next verification tasks.</p></div><span className="mini-chip">MD + JSON</span></div>
+        <div className="saas-panel-head"><div><span>Step 6 · Export</span><h2>Export report</h2><p>Download Markdown/JSON after reviewing the verdict. Reports include ranking, evidence, source coverage, gaps, and next verification tasks.</p></div><span className="mini-chip">MD + JSON</span></div>
         <div className="report-actions"><button onClick={copyMarkdownReport}><Copy size={16}/> Copy Markdown</button><button onClick={downloadMarkdownReport}><Download size={16}/> Download MD</button><button onClick={downloadJsonReport}><Download size={16}/> Download JSON</button><button onClick={exportCard}><Download size={16}/> Export Card</button><button onClick={saveBattle}><Save size={16}/> Save Battle</button></div>
         {reportStatus && <p className="saas-status ok">{reportStatus}</p>}{saveStatus && <p className="saas-status ok">{saveStatus}</p>}
       </section>
