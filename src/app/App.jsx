@@ -434,6 +434,7 @@ function App() {
       } catch (err) { notes.push(`Import: ${err.message || 'failed'}`); }
       try {
         next.gecko = await fetchGeckoMarket(contract, next.pairAddress);
+        setMarketStatus(st => ({ ...st, [i]: 'Included in core scan · refresh anytime' }));
       } catch (err) { notes.push(`Market: ${err.message || 'failed'}`); }
       try {
         const security = await fetchTokenSecurity(contract);
@@ -441,19 +442,20 @@ function App() {
         const secIntel = securityIntel({ security });
         next.security = security;
         next.risk = Math.round(clamp((next.risk || 45) * .55 + (100 - secIntel.score) * .45, 5, 95));
+        setSecurityStatus(st => ({ ...st, [i]: `Included in core scan · ${secIntel.flags.slice(0,2).map(f=>f.label).join(', ') || 'no major flags'}` }));
       } catch (err) { notes.push(`Security: ${err.message || 'failed'}`); }
       if (basescanKey.trim()) {
-        try { next.holders = await fetchHolderIntel(contract, basescanKey.trim()); } catch (err) { notes.push(`Holders: ${err.message || 'failed'}`); }
-        try { next.transferFlow = await fetchTransferFlow(contract, basescanKey.trim()); } catch (err) { notes.push(`Whale flow: ${err.message || 'failed'}`); }
+        try { next.holders = await fetchHolderIntel(contract, basescanKey.trim()); setHolderStatus(st => ({ ...st, [i]: 'Included in core scan · refresh anytime' })); } catch (err) { notes.push(`Holders: ${err.message || 'failed'}`); }
+        try { next.transferFlow = await fetchTransferFlow(contract, basescanKey.trim()); setWhaleFlowStatus(st => ({ ...st, [i]: 'Included in core scan · refresh anytime' })); } catch (err) { notes.push(`Whale flow: ${err.message || 'failed'}`); }
         const deployer = next.deployerAddress || ownerAddress(next);
         if (isAddress(deployer || '')) {
-          try { next.deployerAddress = deployer; next.deployerScan = await fetchDeployerScan(deployer, basescanKey.trim()); } catch (err) { notes.push(`Deployer: ${err.message || 'failed'}`); }
+          try { next.deployerAddress = deployer; next.deployerScan = await fetchDeployerScan(deployer, basescanKey.trim()); setDeployerStatus(st => ({ ...st, [i]: 'Included in core scan · refresh anytime' })); } catch (err) { notes.push(`Deployer: ${err.message || 'failed'}`); }
         }
       } else notes.push('BaseScan key missing: holder, whale, deployer skipped');
       if (neynarKey.trim()) {
         const query = next.socialKeyword || next.symbol || next.name;
         if (query) {
-          try { next.farcasterScan = await fetchFarcasterScan(query, neynarKey.trim()); next.socialKeyword = next.socialKeyword || query; } catch (err) { notes.push(`Farcaster: ${err.message || 'failed'}`); }
+          try { next.farcasterScan = await fetchFarcasterScan(query, neynarKey.trim()); next.socialKeyword = next.socialKeyword || query; setFarcasterStatus(st => ({ ...st, [i]: 'Included in core scan · refresh anytime' })); } catch (err) { notes.push(`Farcaster: ${err.message || 'failed'}`); }
         }
       } else notes.push('Neynar key missing: Farcaster skipped');
       const scoredNext = { ...next, scores: scoreProject(next) };
@@ -517,13 +519,14 @@ function App() {
               <div className="manual-actions"><button className="saas-btn primary big-cta" onClick={()=>analyzeToken(i)} disabled={analyzeStatus[i] === 'loading'}>{analyzeStatus[i] === 'loading' ? <Loader2 size={18} className="spin"/> : <Zap size={18}/>} Analyze token</button><button aria-label="Import only" className="saas-btn secondary-cta" onClick={()=>importBaseToken(i)} disabled={imports[i] === 'loading'}>{imports[i] === 'loading' ? <Loader2 size={17} className="spin"/> : <Search size={17}/>} Import data</button></div>
             </div>
             <div className="evidence-source-panel">
-              <div className="ux-details-title">Optional evidence sources</div>
+              <div className="ux-details-title">Add / refresh evidence</div>
+              <p className="evidence-helper">Analyze token already runs core market + security checks. Use these only to refresh or add missing sources.</p>
               <div className="secondary-grid evidence-fields">
                 <label className="saas-field">GitHub repo<input aria-label="GitHub repo or URL" value={p.repo} onChange={e=>update(i,'repo',e.target.value)} placeholder="owner/repo or GitHub URL" /></label>
                 <label className="saas-field">Deployer / owner<input aria-label="Optional deployer or owner address" value={p.deployerAddress || ''} onChange={e=>update(i,'deployerAddress',e.target.value)} placeholder="Optional deployer/owner address" /></label>
               </div>
               <div className="tool-row compact-tools evidence-tools" aria-label="Optional scan tools">
-                <button onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}><TrendingUp size={16}/> Market</button><button onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}><LockKeyhole size={16}/> Security</button><button onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}><Coins size={16}/> Holders</button><button onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}><Coins size={16}/> Whale flow</button><button onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}><Code2 size={16}/> Repo</button><button onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}><Sparkles size={16}/> Farcaster</button><button onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}><ShieldAlert size={16}/> Deployer</button>
+                <button className={p.gecko ? 'has-evidence' : ''} title={p.gecko ? 'Already included by Analyze token. Click to refresh market data.' : 'Add market data'} onClick={()=>scanMarket(i)} disabled={marketStatus[i] === 'loading'}><TrendingUp size={16}/> {p.gecko ? 'Refresh market' : 'Market'}</button><button className={p.security ? 'has-evidence' : ''} title={p.security ? 'Already included by Analyze token. Click to refresh security.' : 'Add security scan'} onClick={()=>scanSecurity(i)} disabled={securityStatus[i] === 'loading'}><LockKeyhole size={16}/> {p.security ? 'Refresh security' : 'Security'}</button><button className={p.holders ? 'has-evidence' : ''} title={p.holders ? 'Already included by Analyze token. Click to refresh holders.' : 'Add holder scan'} onClick={()=>scanHolders(i)} disabled={holderStatus[i] === 'loading'}><Coins size={16}/> {p.holders ? 'Refresh holders' : 'Holders'}</button><button className={p.transferFlow ? 'has-evidence' : ''} title={p.transferFlow ? 'Already included by Analyze token. Click to refresh whale flow.' : 'Add whale flow scan'} onClick={()=>scanWhaleFlow(i)} disabled={whaleFlowStatus[i] === 'loading'}><Coins size={16}/> {p.transferFlow ? 'Refresh flow' : 'Whale flow'}</button><button className={p.repoUrl ? 'has-evidence' : ''} aria-label="Repo" title={p.repoUrl ? 'Repo already imported. Click to refresh.' : 'Add GitHub repo evidence'} onClick={()=>importRepo(i)} disabled={repoImports[i] === 'loading'}><Code2 size={16}/> {p.repoUrl ? 'Refresh repo' : 'Repo'}</button><button className={p.farcasterScan ? 'has-evidence' : ''} onClick={()=>scanFarcaster(i)} disabled={farcasterStatus[i] === 'loading'}><Sparkles size={16}/> {p.farcasterScan ? 'Refresh social' : 'Farcaster'}</button><button className={p.deployerScan ? 'has-evidence' : ''} onClick={()=>scanDeployer(i)} disabled={deployerStatus[i] === 'loading'}><ShieldAlert size={16}/> {p.deployerScan ? 'Refresh deployer' : 'Deployer'}</button>
               </div>
             </div>
           </div>
