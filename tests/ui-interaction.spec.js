@@ -81,6 +81,9 @@ test('multi-contract entry shows ranking table and top one effect', async ({ pag
   await expect(page.getByText(/Next Best Action/i).first()).toBeVisible();
   await expect(page.getByText(/Token Thesis/i).first()).toBeVisible();
   await expect(page.getByText(/Evaluation Matrix/i).first()).toBeVisible();
+ await expect(page.getByText(/Outcome Agent/i).first()).toBeVisible();
+ await expect(page.getByText(/Conflict Arbiter/i).first()).toBeVisible();
+ await expect(page.getByText(/Manipulation Pattern/i).first()).toBeVisible();
   await expect(page.getByText(/Calibration/i).first()).toBeVisible();
   await expect(page.getByText(/Comparative Judge/i).first()).toBeVisible();
   await expect(page.getByText(/Risk-Adjusted Upside/i).first()).toBeVisible();

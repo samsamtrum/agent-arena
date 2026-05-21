@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Download, GitBranch, Swords, Sparkles, ShieldAlert, TrendingUp, Bot, Coins, Radio, Trophy, Zap, Search, ExternalLink, Loader2, Code2, Copy, Check, Save, RotateCcw, Trash2, KeyRound, Brain, LockKeyhole, Crown } from 'lucide-react';
 const agentIcons = { GitBranch, TrendingUp, ShieldAlert, Sparkles, Coins, Bot };
-const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 import { toPng } from 'html-to-image';
 import '../styles.css';
-import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+import { agents, defaults, emptyProject, WEIGHT_PRESETS, DEFAULT_WEIGHTS, STORAGE_KEY, LLM_KEY, BASESCAN_KEY, NEYNAR_KEY, WEIGHTS_KEY, isAddress, parseRepo, money, shortAddr, num, clamp, readPredictions, readSnapshots, readWeights, writePredictions, writeSnapshots, scoreProject, sourcePlugins, selfReview, agentDebate, consensusFromKernels, agentKernel, trendFor, riskDeltaEngine, agentTasks, predictionStats, scenarioAnalysis, buildReportData, reportMarkdown, downloadText, projectId, compactSnapshot, fetchBaseProject, fetchGeckoMarket, fetchTokenSecurity, marketCrossCheck, fetchHolderIntel, deployerIntel, fetchDeployerScan, ownerAddress, farcasterIntel, fetchFarcasterScan, whaleFlowIntel, fetchTransferFlow, walletLabelIntel, makeCaption, getRiskIntel, securityIntel, holderIntel, holderDistribution, lpDeployerIntel, socialIntel, dataQuality, githubFreshness, battleVerdict, tokenReport, evidenceTrail, evidenceGraph, contradictionDetector, sourceReliability, adjustedScore, topWeakScore, scoreClass, tokenIntelligence, riskSentinel, evidenceAudit, redTeamChallenge, crossSourceJudge, nextBestAction, tokenThesis, evaluationMatrix, calibrationAgent, comparativeJudge, riskAdjustedUpside, outcomeAgent, evidenceConflictArbiter, manipulationPatternAgent, readSavedBattles, writeSavedBattles, agentReports, buildLlmPrompt, kernelSummaryText, applyScenario, lineFor, verdict } from '../core/index.js';
+
+const hasProjectData = (p = {}) => Boolean(p.name || p.symbol || p.contract || p.repo || p.repoUrl || p.pairUrl || num(p.marketCap) || num(p.volume) || num(p.liquidity) || num(p.stars) || num(p.commits) || num(p.mentions));
 
 function App() {
   const [projects, setProjects] = useState(defaults);
@@ -43,7 +44,6 @@ function App() {
   const [scenario, setScenario] = useState({ volumeMultiplier: 1, liquidityMultiplier: 1, mentionsMultiplier: 1, priceMoveDelta: 0, riskDelta: 0, lpStatus: 'same', socialBoost: false });
   const [reportStatus, setReportStatus] = useState('');
   const [analyzeStatus, setAnalyzeStatus] = useState({});
-  window.__AGENT_ARENA_WEIGHTS__ = weights;
   useEffect(() => { setSavedBattles(readSavedBattles()); setApiKey(localStorage.getItem(LLM_KEY) || ''); setBasescanKey(localStorage.getItem(BASESCAN_KEY) || ''); setNeynarKey(localStorage.getItem(NEYNAR_KEY) || ''); setSnapshots(readSnapshots()); setPredictions(readPredictions()); setWeights(readWeights()); }, []);
   const activeProjects = useMemo(() => projects.filter(hasProjectData), [projects]);
   const ranked = useMemo(() => activeProjects.map(p => ({ ...p, scores: scoreProject(p) })).sort((a,b) => (b.scores.adjustedFinal ?? b.scores.final) - (a.scores.adjustedFinal ?? a.scores.final)), [activeProjects]);
@@ -53,7 +53,8 @@ function App() {
   const winnerIntel = getRiskIntel(winner);
   const verdictData = useMemo(() => battleVerdict(ranked), [ranked]);
   const reports = useMemo(() => agentReports(winner, ranked[1]), [winner, ranked]);
-  const kernels = useMemo(() => agentKernel(winner, ranked[1]), [winner, ranked]);
+  window.__AGENT_ARENA_WEIGHTS__ = weights;
+  const kernels = useMemo(() => agentKernel(winner, ranked[1]), [winner, ranked, weights]);
   const consensus = useMemo(() => consensusFromKernels(kernels), [kernels]);
   const debate = useMemo(() => agentDebate(kernels, consensus, winner), [kernels, consensus, winner]);
   const review = useMemo(() => selfReview(winner, kernels, consensus, llmConsensus), [winner, kernels, consensus, llmConsensus]);
@@ -74,6 +75,9 @@ function App() {
   const calibrationEval = useMemo(() => calibrationAgent(winner), [winner]);
   const comparativeEval = useMemo(() => comparativeJudge(winner, ranked, ranked[1]), [winner, ranked]);
   const upsideEval = useMemo(() => riskAdjustedUpside(winner), [winner]);
+  const outcomeEval = useMemo(() => outcomeAgent(winner, backtest.recent || backtest.resolved || []), [winner, backtest]);
+  const conflictEval = useMemo(() => evidenceConflictArbiter(winner), [winner]);
+  const manipulationEval = useMemo(() => manipulationPatternAgent(winner), [winner]);
   const caption = useMemo(() => makeCaption(winner, winnerIntel), [winner, winnerIntel]);
   const update = (i, key, value) => setProjects(ps => ps.map((p, idx) => idx === i ? { ...p, [key]: value } : p));
   const addProject = () => setProjects(ps => [...ps, emptyProject()]);
@@ -568,6 +572,11 @@ function App() {
             <div><b>Calibration</b><strong>{calibrationEval.label}</strong><span>Raw {calibrationEval.rawScore} → calibrated {calibrationEval.calibratedScore}</span><em>Cap {calibrationEval.confidenceCap}% · unlock {calibrationEval.requiredEvidenceToUnlock[0]}</em></div>
             <div><b>Comparative Judge</b><strong>{comparativeEval.margin ?? 'N/A'}</strong><span>{comparativeEval.finalRankingRationale}</span><em>{comparativeEval.runnerUpThreat}</em></div>
             <div><b>Risk-Adjusted Upside</b><strong>{upsideEval.riskRewardRatio}</strong><span>{upsideEval.positionType}</span><em>{upsideEval.allocationHint}</em></div>
+          </div>
+          <div className="agent-eval-grid agent-verdict-grid">
+            <div><b>Outcome Agent</b><strong>{outcomeEval.predictionAccuracy}%</strong><span>{outcomeEval.summary}</span><em>{outcomeEval.weightAdjustmentSuggestion}</em></div>
+            <div><b>Conflict Arbiter</b><strong>{conflictEval.label}</strong><span>Trust: {conflictEval.trustedSide}</span><em>Haircut -{conflictEval.scoreHaircut} · Review {conflictEval.manualReviewRequired ? 'Yes' : 'No'}</em></div>
+            <div><b>Manipulation Pattern</b><strong>{manipulationEval.manipulationRisk}/100</strong><span>{manipulationEval.label}</span><em>{manipulationEval.exitRiskWindow}</em></div>
           </div>
         </> : <p className="muted">Agent council activates after real token data is imported.</p>}
       </section>

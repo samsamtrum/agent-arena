@@ -120,6 +120,9 @@ test('consensus activates risk veto when Risk Agent is bearish with high confide
   assert.ok(kernels.some(k => k.name === 'Evaluation Matrix Agent'));
   assert.ok(kernels.some(k => k.name === 'Calibration Agent'));
   assert.ok(kernels.some(k => k.name === 'Comparative Judge Agent'));
+  assert.ok(kernels.some(k => k.name === 'Outcome Agent'));
+  assert.ok(kernels.some(k => k.name === 'Conflict Arbiter Agent'));
+  assert.ok(kernels.some(k => k.name === 'Manipulation Pattern Agent'));
 });
 
 
@@ -136,6 +139,26 @@ test('red team and source judge expose attack vectors and next actions', () => {
   assert.ok(action.nextScan);
   assert.ok(thesis.bullCase);
   assert.ok(thesis.bearCase);
+});
+
+
+test('outcome, conflict arbiter, and manipulation agents sharpen evaluation quality', () => {
+  const risky = { ...baseProject,
+    symbol: 'RISK', priceChange24h: 42, volume: 260000, liquidity: 60000, marketCap: 9000000,
+    holders: { top10Pct: 68, top1Pct: 24, count: 260 },
+    mentionText: 'moon moon moon buy now moon moon moon',
+    transferFlow: { transferCount: 80, uniqueWallets: 12, ownerOutPct: 16, netToTopWalletPct: 25, largeTransferCount: 8 },
+    security: { is_honeypot: '0', buy_tax: '0', sell_tax: '0' }
+  };
+  risky.scores = core.scoreProject(risky);
+  const outcome = core.outcomeAgent(risky, [{ projectId: risky.contract.toLowerCase(), price: 1, volume: 100000, liquidity: 90000, finalScore: 85, votes: { 'Trader Agent': 'Bullish' }, consensus: 'Bullish' }]);
+  const arbiter = core.evidenceConflictArbiter(risky);
+  const manipulation = core.manipulationPatternAgent(risky);
+  assert.ok(outcome.sampleSize >= 1);
+  assert.ok(arbiter.scoreHaircut > 0);
+  assert.ok(arbiter.manualReviewRequired);
+  assert.ok(manipulation.manipulationRisk >= 45);
+  assert.ok(manipulation.detectedPatterns.length);
 });
 
 test('evaluation, calibration, and comparative agents produce structured judgment', () => {
@@ -404,6 +427,8 @@ test('report export includes winner, ranking, evidence, and tasks', () => {
   assert.match(md, /Evidence audit:/);
   assert.match(md, /Red Team \/ Source Judge \/ Thesis/);
   assert.match(md, /Evaluation Matrix \/ Calibration \/ Comparison/);
+  assert.match(md, /Outcome \/ Conflict \/ Manipulation Agents/);
+  assert.match(md, /Manipulation pattern:/);
   assert.match(md, /Evaluation matrix:/);
   assert.match(md, /Comparative judge:/);
   assert.match(md, /Next best action:/);
